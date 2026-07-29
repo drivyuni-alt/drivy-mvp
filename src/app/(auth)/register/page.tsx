@@ -42,10 +42,7 @@ export default function RegisterPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    signUp.mutate(
-      { ...form, avatarFile },
-      { onSuccess: () => router.push("/login") }
-    );
+    signUp.mutate({ ...form, avatarFile });
   }
 
   const universityOptions =
@@ -53,6 +50,22 @@ export default function RegisterPage() {
       value: university.id,
       label: university.name,
     })) ?? [];
+
+  if (signUp.isSuccess) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-ink-900 dark:text-white">Revisa tu correo</h1>
+        <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
+          Te hemos enviado un email a <strong>{form.email}</strong> para confirmar tu cuenta.
+          Ábrelo y pulsa el enlace de confirmación antes de iniciar sesión — si no lo ves,
+          revisa también la carpeta de spam.
+        </p>
+        <Button type="button" className="mt-6" size="lg" onClick={() => router.push("/login")}>
+          Ir a iniciar sesión
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -166,7 +179,9 @@ export default function RegisterPage() {
 
         {signUp.isError && (
           <p className="text-sm text-danger">
-            No hemos podido crear tu cuenta. Inténtalo de nuevo.
+            {signUp.error.message.toLowerCase().includes("rate limit")
+              ? "Se han enviado demasiados correos de confirmación en poco tiempo. Espera unos minutos y vuelve a intentarlo."
+              : "No hemos podido crear tu cuenta. Inténtalo de nuevo."}
           </p>
         )}
 

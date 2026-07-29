@@ -60,7 +60,9 @@ export default function LoginPage() {
 
         {signIn.isError && (
           <p className="text-sm text-danger">
-            No hemos podido iniciar sesión. Revisa tus credenciales.
+            {signIn.error.message.toLowerCase().includes("email not confirmed")
+              ? "Debes confirmar tu correo antes de iniciar sesión. Revisa la bandeja de entrada (y spam) del email con el que te registraste."
+              : "No hemos podido iniciar sesión. Revisa tus credenciales."}
           </p>
         )}
 
