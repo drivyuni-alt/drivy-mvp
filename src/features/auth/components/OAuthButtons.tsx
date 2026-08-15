@@ -27,37 +27,26 @@ function GoogleIcon() {
   );
 }
 
-function AppleIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
-      <path d="M16.365 1.43c0 1.14-.415 2.06-1.246 2.99-.997 1.113-2.209 1.756-3.508 1.653a3.68 3.68 0 01-.043-.545c0-1.096.478-2.267 1.32-3.148C13.31.586 14.61.01 15.679 0c.043.24.686.24.686 1.43zm4.243 15.47c-.24.556-.523 1.088-.85 1.596-.44.686-1.29 1.9-2.242 2.42-.9.49-1.88.8-2.877.44-.85-.31-1.63-.51-2.52-.51-.9 0-1.72.2-2.53.52-.99.36-1.67.14-2.53-.34-.99-.55-1.85-1.71-2.31-2.44-1.44-2.29-2.55-6.49-1.06-9.32.74-1.41 2.07-2.3 3.53-2.33.9-.02 1.75.61 2.32.61.56 0 1.6-.75 2.7-.64.46.02 1.75.19 2.58 1.42-.07.04-1.54.9-1.52 2.68.02 2.13 1.87 2.84 1.89 2.85-.02.06-.3 1.03-.98 2.03z" />
-    </svg>
-  );
-}
-
+/**
+ * Sólo Google de momento. "Sign in with Apple" exige estar dado de alta en el Apple
+ * Developer Program (~99 €/año), un coste que no tiene sentido asumir para validar el MVP.
+ * El proveedor `"apple"` sigue existiendo en `OAuthProvider` y el callback de OAuth ya lo
+ * soporta, así que reactivarlo el día que se pague la cuenta es volver a añadir un botón
+ * aquí — no hay que tocar nada más.
+ */
 export function OAuthButtons() {
   const signInWithOAuth = useSignInWithOAuth();
 
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <Button
-        type="button"
-        variant="outline"
-        leftIcon={<GoogleIcon />}
-        isLoading={signInWithOAuth.isPending && signInWithOAuth.variables === "google"}
-        onClick={() => signInWithOAuth.mutate("google")}
-      >
-        Google
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        leftIcon={<AppleIcon />}
-        isLoading={signInWithOAuth.isPending && signInWithOAuth.variables === "apple"}
-        onClick={() => signInWithOAuth.mutate("apple")}
-      >
-        Apple
-      </Button>
-    </div>
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full"
+      leftIcon={<GoogleIcon />}
+      isLoading={signInWithOAuth.isPending && signInWithOAuth.variables === "google"}
+      onClick={() => signInWithOAuth.mutate("google")}
+    >
+      Continuar con Google
+    </Button>
   );
 }
