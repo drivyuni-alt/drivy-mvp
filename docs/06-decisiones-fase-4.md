@@ -32,10 +32,21 @@
      cliente del navegador vía RLS, no a través de un Server Action, así que una
      comprobación solo en el cliente se podría saltar llamando a la API de Supabase
      directamente. El trigger no se puede evitar por ningún cliente.
-  Verificado en la base de datos real: un INSERT SQL directo con un teléfono se
-  rechaza igual que desde la app. Limitación conocida y documentada: alguien decidido
-  a saltárselo puede separar los dígitos con letras o emojis para evadir el patrón —
-  es fricción real contra el caso común, no un sistema de moderación NLP infalible.
+
+  **Endurecido en `0018_phone_detection_spelled_digits.sql`.** La versión inicial sólo
+  miraba dígitos literales con separadores ` . -`, y en la práctica se saltaba de dos
+  formas triviales: escribiendo el número con palabras ("seis uno dos tres…") o metiendo
+  símbolos fuera de esa lista ("612#345#678"). Ahora se comprueba dos veces: el texto tal
+  cual con la clase de separadores ampliada (` . - _ # * · •`), y el texto con las
+  palabras-dígito en castellano reescritas a números, lo que además cubre las formas
+  mixtas ("612 tres cuatro cinco 678"). `/` y `:` siguen deliberadamente fuera para no
+  marcar fechas ni horas.
+
+  Verificado contra la base de datos real con 16 casos (10 que deben bloquearse y 6 que
+  no: fechas, horas, precios, "dos maletas y tres mochilas"), más 5 INSERT reales sobre
+  `messages` dentro de transacciones revertidas. Limitación que se mantiene: quien esté
+  decidido puede deletrear los números en otro idioma, usar glifos parecidos o mandar una
+  foto — esto es fricción real contra el caso común, no moderación NLP infalible.
 - **Compartir ubicación** usa la Geolocation API del navegador y guarda
   `location_lat/lng`; el mensaje se renderiza como un enlace a
   `google.com/maps?q=lat,lng` (sin necesidad de clave de Google Maps, es sólo una URL).

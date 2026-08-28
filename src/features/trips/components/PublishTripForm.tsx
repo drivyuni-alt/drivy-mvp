@@ -5,24 +5,32 @@ import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { PlaceAutocompleteInput } from "@/components/maps/PlaceAutocompleteInput";
+import { useGoogleMaps } from "@/components/maps/GoogleMapsProvider";
 import { Button, Input, Select, Skeleton, Textarea } from "@/components/ui";
 import { AddVehicleForm } from "@/features/vehicles/components/AddVehicleForm";
 
 import { useCreateTrip, useVehiclesForUser } from "../hooks";
 import type { CreateTripInput } from "../types";
 
+/**
+ * `lat`/`lng` son `null` mientras la dirección no se haya geocodificado — igual que en
+ * `SearchForm`. Es importante NO usar 0 como "sin geocodificar": 0,0 es una coordenada
+ * válida (en el Atlántico) y el motor de matching la tomaba como buena, calculando
+ * distancias absurdas para todos los viajes creados a mano.
+ */
 interface PlaceState {
   address: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }
 
-const EMPTY_PLACE: PlaceState = { address: "", lat: 0, lng: 0 };
+const EMPTY_PLACE: PlaceState = { address: "", lat: null, lng: null };
 
 export function PublishTripForm({ driverId }: { driverId: string }) {
   const router = useRouter();
   const vehicles = useVehiclesForUser(driverId);
   const createTrip = useCreateTrip();
+  const { isLoaded: mapsReady } = useGoogleMaps();
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [origin, setOrigin] = useState<PlaceState>(EMPTY_PLACE);
@@ -33,6 +41,7 @@ export function PublishTripForm({ driverId }: { driverId: string }) {
   const [price, setPrice] = useState("3.50");
   const [autoAccept, setAutoAccept] = useState(false);
   const [notes, setNotes] = useState("");
+  const [placeError, setPlaceError] = useState<string | null>(null);
 
   if (vehicles.isLoading) {
     return <Skeleton className="h-64 w-full" />;
@@ -54,15 +63,31 @@ export function PublishTripForm({ driverId }: { driverId: string }) {
     event.preventDefault();
     if (!date || !time) return;
 
+    // Con Maps disponible, escribir la dirección a mano sin elegirla del desplegable no
+    // geocodifica nada, así que el viaje se guardaría sin coordenadas utilizables y
+    // quedaría invisible para el matching. Sin Maps (sin clave o sin red) se acepta texto
+    // libre y se degrada a 0,0, que es el comportamiento documentado en
+    // docs/04-decisiones-fase-2.md.
+    const missingCoordinates =
+      origin.lat === null || origin.lng === null || destination.lat === null || destination.lng === null;
+
+    if (mapsReady && missingCoordinates) {
+      setPlaceError(
+        "Elige el origen y el destino de la lista de sugerencias para que podamos calcular la ruta."
+      );
+      return;
+    }
+    setPlaceError(null);
+
     const input: CreateTripInput = {
       driverId,
       vehicleId,
       originAddress: origin.address,
-      originLat: origin.lat,
-      originLng: origin.lng,
+      originLat: origin.lat ?? 0,
+      originLng: origin.lng ?? 0,
       destinationAddress: destination.address,
-      destinationLat: destination.lat,
-      destinationLng: destination.lng,
+      destinationLat: destination.lat ?? 0,
+      destinationLng: destination.lng ?? 0,
       departureAt: new Date(`${date}T${time}`).toISOString(),
       availableSeats: Number(seats),
       pricePerSeat: Number(price),
@@ -93,7 +118,7 @@ export function PublishTripForm({ driverId }: { driverId: string }) {
         label="Origen"
         placeholder="Dirección de salida"
         value={origin.address}
-        onChange={(address) => setOrigin((prev) => ({ ...prev, address }))}
+        onChange={(address) => setOrigin({ address, lat: null, lng: null })}
         onPlaceSelected={setOrigin}
         required
       />
@@ -101,10 +126,12 @@ export function PublishTripForm({ driverId }: { driverId: string }) {
         label="Destino"
         placeholder="Dirección de llegada"
         value={destination.address}
-        onChange={(address) => setDestination((prev) => ({ ...prev, address }))}
+        onChange={(address) => setDestination({ address, lat: null, lng: null })}
         onPlaceSelected={setDestination}
         required
       />
+
+      {placeError && <p className="text-sm text-danger">{placeError}</p>}
 
       <div className="grid grid-cols-2 gap-3">
         <Input
