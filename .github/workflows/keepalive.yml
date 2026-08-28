@@ -1,0 +1,67 @@
+# El plan gratuito de Supabase pausa el proyecto tras unos días sin actividad, y una pausa
+# es una caída total y silenciosa de Drivy: nadie puede entrar y no llega ningún aviso. Ya
+# nos pasó una vez. Este workflow hace una consulta trivial cada tres días para que el
+# proyecto cuente como activo, y falla a propósito si la base no responde, con lo que
+# GitHub manda un email automático. Así el mismo mecanismo sirve de anti-pausa y de
+# vigilancia.
+#
+# Aviso: GitHub desactiva los workflows programados si el repositorio pasa 60 días sin
+# commits (avisa por email antes de hacerlo). Si aparcas el proyecto mucho tiempo, este
+# guardián también se duerme.
+#
+# Esto es un parche sobre el plan gratuito, no una garantía. En cuanto haya estudiantes
+# usando la app de verdad, lo correcto es pasar a Supabase Pro: sin pausas y con backups
+# diarios automáticos.
+
+name: Mantener Supabase despierto
+
+on:
+  schedule:
+    # Cada tres días a las 06:00 UTC. Supabase pausa a los ~7 días de inactividad, así que
+    # este margen aguanta aunque falle una ejecución o GitHub la retrase (las tareas
+    # programadas no son puntuales cuando hay mucha carga).
+    - cron: "0 6 */3 * *"
+  workflow_dispatch: # permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar la base de datos
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_ANON_KEY}" ]; then
+            echo "::error::Faltan los secretos SUPABASE_URL o SUPABASE_ANON_KEY del repositorio."
+            exit 1
+          fi
+
+          # `universities` es legible por el rol anon desde la migración 0016, así que basta
+          # la clave pública para provocar una lectura real contra Postgres.
+          response=$(curl -sS --max-time 30 -w "\n%{http_code}" \
+            "${SUPABASE_URL}/rest/v1/universities?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+
+          status=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP ${status}"
+          echo "Respuesta: ${body}"
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Supabase no respondió correctamente (HTTP ${status}). El proyecto puede estar pausado o caído."
+            exit 1
+          fi
+
+          # Un 200 con un array vacío apuntaría a un problema de datos o de RLS aunque el
+          # servicio esté levantado.
+          if [ "$body" = "[]" ]; then
+            echo "::error::Supabase respondió 200 pero sin filas en universities. Revisar datos o políticas RLS."
+            exit 1
+          fi
+
+          echo "Base de datos activa."
