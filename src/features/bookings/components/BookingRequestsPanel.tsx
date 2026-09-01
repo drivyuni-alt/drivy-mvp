@@ -65,6 +65,12 @@ function BookingRequestCard({
               {booking.seats_requested} plaza{booking.seats_requested === 1 ? "" : "s"} · ⭐{" "}
               {passenger.rating_avg.toFixed(1)}
             </p>
+            {/* Sin esto el conductor acepta a ciegas y no sabe por dónde pasar a recoger. */}
+            {booking.pickup_address && (
+              <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
+                📍 Recoger en: {booking.pickup_address}
+              </p>
+            )}
           </div>
         </div>
 

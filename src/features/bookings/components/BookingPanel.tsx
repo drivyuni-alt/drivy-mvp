@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { Badge, Button, Input, Modal, buttonVariants } from "@/components/ui";
+import { PlaceAutocompleteInput } from "@/components/maps/PlaceAutocompleteInput";
+import { useGoogleMaps } from "@/components/maps/GoogleMapsProvider";
 import { useChatForBooking } from "@/features/chat/hooks";
 import { useMatchingContext } from "@/features/matching/hooks";
 import { scoreTrips } from "@/features/matching/scoring";
@@ -34,8 +36,21 @@ export function BookingPanel({
   // No search context at this point (the passenger landed directly on the trip page) —
   // the score stored on the booking reflects driver quality/known-driver only.
   const matchingContext = useMatchingContext(passengerId);
+  const { isLoaded: mapsReady } = useGoogleMaps();
   const [modalOpen, setModalOpen] = useState(false);
   const [seats, setSeats] = useState("1");
+  /**
+   * Dónde recoger al pasajero. Antes no se preguntaba: se copiaba `trip.origin_address`,
+   * así que el conductor veía a todo el mundo esperándole en su propia puerta y la "Ruta
+   * inteligente" ordenaba puntos de recogida idénticos entre sí. Vacío = "me recoges en el
+   * origen del viaje", que sigue siendo una opción legítima.
+   */
+  const [pickup, setPickup] = useState<{ address: string; lat: number | null; lng: number | null }>({
+    address: "",
+    lat: null,
+    lng: null,
+  });
+  const [pickupError, setPickupError] = useState<string | null>(null);
 
   const chat = useChatForBooking(
     myBooking.data?.status === "accepted" ? myBooking.data.id : undefined
@@ -71,14 +86,25 @@ export function BookingPanel({
     const seatsRequested = Number(seats);
     const [scored] = scoreTrips([tripWithDriver], matchingContext);
 
+    // Escribir la dirección sin elegirla del desplegable no la geocodifica, y el conductor
+    // acabaría con un texto que la ruta no puede usar. Mismo criterio que en publicar viaje.
+    const typedButNotPicked = pickup.address.trim() !== "" && pickup.lat === null;
+    if (mapsReady && typedButNotPicked) {
+      setPickupError("Elige tu dirección de recogida de la lista de sugerencias.");
+      return;
+    }
+    setPickupError(null);
+
+    const usesOwnPickup = pickup.lat !== null && pickup.lng !== null;
+
     createBooking.mutate(
       {
         tripId: trip.id,
         passengerId,
         seatsRequested,
-        pickupAddress: trip.origin_address,
-        pickupLat: trip.origin_lat,
-        pickupLng: trip.origin_lng,
+        pickupAddress: usesOwnPickup ? pickup.address : trip.origin_address,
+        pickupLat: usesOwnPickup ? pickup.lat! : trip.origin_lat,
+        pickupLng: usesOwnPickup ? pickup.lng! : trip.origin_lng,
         dropoffAddress: trip.destination_address,
         dropoffLat: trip.destination_lat,
         dropoffLng: trip.destination_lng,
@@ -102,6 +128,16 @@ export function BookingPanel({
         description={`${trip.origin_address} → ${trip.destination_address}`}
       >
         <div className="flex flex-col gap-4">
+          <PlaceAutocompleteInput
+            label="¿Dónde te recogemos?"
+            placeholder="Tu dirección de recogida"
+            value={pickup.address}
+            onChange={(address) => setPickup({ address, lat: null, lng: null })}
+            onPlaceSelected={setPickup}
+            hint="Déjalo vacío si vas directamente al punto de salida del conductor."
+          />
+          {pickupError && <p className="text-sm text-danger">{pickupError}</p>}
+
           <Input
             label="Plazas"
             type="number"
