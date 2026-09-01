@@ -44,6 +44,8 @@ export async function updateProfile(input: UpdateProfileInput): Promise<void> {
     .update({
       first_name: input.firstName,
       last_name: input.lastName,
+      university_id: input.universityId,
+      university_email: input.universityEmail || null,
       degree: input.degree,
       phone: input.phone,
       bio: input.bio,

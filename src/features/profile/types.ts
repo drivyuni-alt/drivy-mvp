@@ -11,6 +11,14 @@ export interface UpdateProfileInput {
   userId: string;
   firstName: string;
   lastName: string;
+  /**
+   * Editables desde el perfil porque hasta 0019 el alta los perdía, y sin ellos la
+   * verificación de universidad es inalcanzable: `requestUniversityVerification` compara
+   * el dominio de `university_email` con el de la universidad elegida, así que si no hay
+   * forma de rellenar ninguno de los dos, el usuario queda bloqueado para siempre.
+   */
+  universityId: string | null;
+  universityEmail: string;
   degree: string;
   phone: string;
   bio: string;

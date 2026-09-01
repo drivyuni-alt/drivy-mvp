@@ -3,8 +3,9 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
-import { Button, Input, Modal, Textarea } from "@/components/ui";
+import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
 import type { Tables } from "@/lib/supabase/types";
+import { useUniversities } from "@/features/auth/hooks";
 
 import { useUpdateProfile } from "../hooks";
 
@@ -18,9 +19,12 @@ export function EditProfileModal({
   onClose: () => void;
 }) {
   const updateProfile = useUpdateProfile();
+  const universities = useUniversities();
   const [form, setForm] = useState({
     firstName: profile.first_name,
     lastName: profile.last_name,
+    universityId: profile.university_id ?? "",
+    universityEmail: profile.university_email ?? "",
     degree: profile.degree ?? "",
     phone: profile.phone ?? "",
     bio: profile.bio ?? "",
@@ -41,7 +45,7 @@ export function EditProfileModal({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     updateProfile.mutate(
-      { userId: profile.id, ...form, avatarFile },
+      { userId: profile.id, ...form, universityId: form.universityId || null, avatarFile },
       { onSuccess: onClose }
     );
   }
@@ -68,6 +72,23 @@ export function EditProfileModal({
             onChange={(event) => update("lastName", event.target.value)}
           />
         </div>
+        <Select
+          label="Universidad"
+          placeholder="Selecciona tu universidad"
+          value={form.universityId}
+          onChange={(event) => update("universityId", event.target.value)}
+          options={(universities.data ?? []).map((university) => ({
+            value: university.id,
+            label: university.name,
+          }))}
+        />
+        <Input
+          label="Correo universitario"
+          type="email"
+          value={form.universityEmail}
+          onChange={(event) => update("universityEmail", event.target.value)}
+          hint="Necesario para conseguir la insignia de universidad verificada."
+        />
         <Input label="Carrera" value={form.degree} onChange={(event) => update("degree", event.target.value)} />
         <Input
           label="Teléfono"
