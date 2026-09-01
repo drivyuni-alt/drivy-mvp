@@ -14,6 +14,7 @@ import { SOSButton } from "@/features/safety/components/SOSButton";
 import { formatDateTime, formatPrice } from "@/lib/format";
 
 import { useTrip } from "../hooks";
+import { CancelTripButton } from "./CancelTripButton";
 
 export function TripDetailScreen({
   tripId,
@@ -128,6 +129,7 @@ export function TripDetailScreen({
               <BookingRequestsPanel tripId={trip.id} />
             </div>
           )}
+          {trip.status === "scheduled" && <CancelTripButton tripId={trip.id} />}
         </>
       ) : (
         <>
