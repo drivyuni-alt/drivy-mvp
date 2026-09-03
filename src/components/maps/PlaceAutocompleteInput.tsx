@@ -5,6 +5,7 @@ import type { ChangeEvent } from "react";
 
 import { Input } from "@/components/ui";
 import type { InputProps } from "@/components/ui";
+import { SEVILLE_BOUNDS } from "@/lib/seville-bounds";
 
 import { useGoogleMaps } from "./GoogleMapsProvider";
 
@@ -43,8 +44,16 @@ export function PlaceAutocompleteInput({
   useEffect(() => {
     if (!isLoaded || !inputRef.current || autocompleteRef.current) return;
 
+    // `strictBounds` es lo que de verdad filtra: sin él, `bounds` sólo prioriza los
+    // resultados cercanos pero sigue ofreciendo direcciones de cualquier parte.
     const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
       fields: ["formatted_address", "geometry"],
+      componentRestrictions: { country: "es" },
+      bounds: new google.maps.LatLngBounds(
+        { lat: SEVILLE_BOUNDS.south, lng: SEVILLE_BOUNDS.west },
+        { lat: SEVILLE_BOUNDS.north, lng: SEVILLE_BOUNDS.east }
+      ),
+      strictBounds: true,
     });
     autocomplete.addListener("place_changed", () => {
       const place = autocomplete.getPlace();
