@@ -282,6 +282,35 @@ type BookingsInsert = {
 type BookingsUpdate = Partial<BookingsInsert>;
 
 // --- passengers ------------------------------------------------------------
+/**
+ * Una fila por viaje: la última posición conocida del conductor mientras la ruta está en
+ * curso. Ver supabase/migrations/0021_driver_live_location.sql.
+ */
+type TripDriverLocationsRow = {
+  trip_id: string;
+  driver_id: string;
+  lat: number;
+  lng: number;
+  heading: number | null;
+  updated_at: string;
+};
+type TripDriverLocationsInsert = {
+  trip_id: string;
+  driver_id: string;
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  updated_at?: string;
+};
+type TripDriverLocationsUpdate = {
+  trip_id?: string;
+  driver_id?: string;
+  lat?: number;
+  lng?: number;
+  heading?: number | null;
+  updated_at?: string;
+};
+
 type PassengersRow = {
   id: string;
   trip_id: string;
@@ -581,6 +610,12 @@ export interface Database {
         Row: PassengersRow;
         Insert: PassengersInsert;
         Update: PassengersUpdate;
+        Relationships: [];
+      };
+      trip_driver_locations: {
+        Row: TripDriverLocationsRow;
+        Insert: TripDriverLocationsInsert;
+        Update: TripDriverLocationsUpdate;
         Relationships: [];
       };
       chats: {

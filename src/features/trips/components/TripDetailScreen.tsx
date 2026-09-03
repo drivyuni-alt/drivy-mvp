@@ -1,6 +1,5 @@
 "use client";
 
-import { RouteMap } from "@/components/maps/RouteMap";
 import { Badge, Card, CardContent, Skeleton } from "@/components/ui";
 import { BookingPanel } from "@/features/bookings/components/BookingPanel";
 import { BookingRequestsPanel } from "@/features/bookings/components/BookingRequestsPanel";
@@ -15,6 +14,7 @@ import { formatDateTime, formatPrice } from "@/lib/format";
 
 import { useTrip } from "../hooks";
 import { CancelTripButton } from "./CancelTripButton";
+import { TripMapWithDriver } from "./TripMapWithDriver";
 
 export function TripDetailScreen({
   tripId,
@@ -50,11 +50,7 @@ export function TripDetailScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <RouteMap
-        origin={{ lat: trip.origin_lat, lng: trip.origin_lng }}
-        destination={{ lat: trip.destination_lat, lng: trip.destination_lng }}
-        className="h-56 w-full overflow-hidden rounded-2xl"
-      />
+      <TripMapWithDriver trip={trip} isDriver={isDriver} currentUserId={currentUserId} />
 
       <div>
         <p className="text-sm font-semibold text-ink-900 dark:text-white">{trip.origin_address}</p>
