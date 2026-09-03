@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card, Skeleton } from "@/components/ui";
 import { buildGoogleMapsDeepLink } from "@/lib/route-planner";
 import { formatDurationMinutes } from "@/lib/geo";
 import type { Tables } from "@/lib/supabase/types";
@@ -17,7 +17,12 @@ export function RouteAssistantPanel({ trip }: { trip: Tables<"trips"> }) {
   const completeTrip = useCompleteTrip();
   useRealtimePassengerRoster(trip.id);
 
-  if (roster.isLoading) return null;
+  // Sólo en la primera carga, cuando de verdad no hay nada que enseñar. En las recargas
+  // posteriores `placeholderData` conserva los datos anteriores, así que el panel nunca se
+  // queda vacío ni desaparece de la pantalla.
+  if (roster.isLoading) {
+    return <Skeleton className="h-40 w-full" />;
+  }
 
   const orderedRoster = [...(roster.data ?? [])].sort(
     (a, b) => (a.passenger.pickup_order ?? 99) - (b.passenger.pickup_order ?? 99)
