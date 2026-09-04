@@ -105,7 +105,11 @@ export function TripDetailScreen({
 
       {trip.status === "in_progress" && (
         <div className="flex flex-col gap-3">
-          <LiveLocationShare tripId={trip.id} currentUserId={currentUserId} />
+          {/* Sólo para pasajeros. Al conductor le sobra: su ubicación ya la publica
+              automáticamente el mapa de arriba, y tener las dos cosas a la vez llevó a
+              pulsar la de aquí esperando que los pasajeros le vieran en el mapa —
+              cosa que esta tarjeta no hace, porque emite por un canal efímero aparte. */}
+          {!isDriver && <LiveLocationShare tripId={trip.id} currentUserId={currentUserId} />}
           {currentUserProfile.data && (
             <SOSButton tripId={trip.id} profile={currentUserProfile.data.profile} />
           )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { RouteMap } from "@/components/maps/RouteMap";
+import { Button } from "@/components/ui";
 import {
   useDriverLocation,
   usePublishDriverLocation,
@@ -50,9 +51,19 @@ export function TripMapWithDriver({
       />
 
       {routeInProgress && isDriver && (
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          {publish.error ?? "Compartiendo tu ubicación con los pasajeros del viaje."}
-        </p>
+        <div className="flex flex-col gap-2">
+          {publish.error && <p className="text-xs text-danger">{publish.error}</p>}
+
+          {publish.isSharing ? (
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              📍 Compartiendo tu ubicación con los pasajeros del viaje.
+            </p>
+          ) : (
+            <Button size="sm" variant="outline" onClick={publish.start}>
+              Compartir mi ubicación con los pasajeros
+            </Button>
+          )}
+        </div>
       )}
 
       {routeInProgress && !isDriver && (

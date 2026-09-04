@@ -38,11 +38,40 @@ export function usePublishDriverLocation({
   enabled: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Arrancar `watchPosition` solo, nada más cargar la página, no funciona de forma fiable:
+   * los navegadores esperan un gesto del usuario para mostrar el diálogo de permiso y, si
+   * no lo hay, lo ignoran o lo bloquean en silencio. Por eso sólo se arranca solo cuando el
+   * permiso YA está concedido; en cualquier otro caso hace falta que el conductor pulse.
+   */
+  const [started, setStarted] = useState(false);
+  const [permission, setPermission] = useState<PermissionState | "unknown">("unknown");
   const lastSentAtRef = useRef(0);
   const lastPositionRef = useRef<LatLng | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || typeof navigator === "undefined" || !navigator.permissions) return;
+    let cancelled = false;
+
+    void navigator.permissions
+      .query({ name: "geolocation" as PermissionName })
+      .then((status) => {
+        if (cancelled) return;
+        setPermission(status.state);
+        if (status.state === "granted") setStarted(true);
+      })
+      .catch(() => {
+        // Safari antiguo no expone permissions.query para geolocation: se queda en
+        // "unknown" y el conductor tendrá que pulsar el botón, que es el camino seguro.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !started) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setError("Tu dispositivo no permite compartir la ubicación.");
       return;
@@ -83,8 +112,14 @@ export function usePublishDriverLocation({
             if (!cancelled) setError(upsertError ? "No se pudo actualizar tu ubicación." : null);
           });
       },
-      () => {
-        if (!cancelled) setError("No hemos podido acceder a tu ubicación.");
+      (positionError) => {
+        if (cancelled) return;
+        setStarted(false);
+        setError(
+          positionError.code === positionError.PERMISSION_DENIED
+            ? "Has bloqueado la ubicación para Drivy. Actívala en los ajustes del navegador para que tus pasajeros te vean."
+            : "No hemos podido acceder a tu ubicación. Comprueba que el GPS está encendido."
+        );
       },
       { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 }
     );
@@ -93,9 +128,18 @@ export function usePublishDriverLocation({
       cancelled = true;
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [tripId, driverId, enabled]);
+  }, [tripId, driverId, enabled, started]);
 
-  return { error };
+  return {
+    error,
+    isSharing: started && error === null,
+    /** Debe llamarse desde un clic real: es lo que hace que el navegador muestre el diálogo. */
+    start: () => {
+      setError(null);
+      setStarted(true);
+    },
+    needsPermission: permission !== "granted",
+  };
 }
 
 /**
