@@ -99,9 +99,25 @@ export async function fetchVehiclesForUser(userId: string): Promise<Tables<"vehi
   return data;
 }
 
+/**
+ * Ventana hacia atrás de los viajes que se siguen considerando "en curso" para el usuario.
+ *
+ * No basta con `departure_at >= ahora`: un viaje de las 10:30 desaparecía de Inicio a las
+ * 10:31, justo cuando hay que usarlo. Y tampoco basta con el estado `scheduled`, porque al
+ * pulsar "Iniciar ruta" el viaje pasa a `in_progress` y se esfumaba de la pantalla — el
+ * conductor sólo podía volver a él desde la notificación.
+ *
+ * 12 horas cubre un trayecto que empieza tarde o se alarga, sin arrastrar viajes antiguos
+ * que quedaron en `scheduled` y nadie llegó a completar.
+ */
+const ACTIVE_TRIP_LOOKBACK_HOURS = 12;
+
+/** Estados que el usuario debe seguir viendo en Inicio: lo que va a pasar y lo que está pasando. */
+const ACTIVE_TRIP_STATUSES = ["scheduled", "in_progress"] as const;
+
 export async function fetchUpcomingTripsForUser(userId: string): Promise<UpcomingTripItem[]> {
   const supabase = createClient();
-  const nowIso = new Date().toISOString();
+  const since = new Date(Date.now() - ACTIVE_TRIP_LOOKBACK_HOURS * 60 * 60 * 1000).toISOString();
 
   const [{ data: driverTrips, error: driverTripsError }, { data: myBookings, error: bookingsError }] =
     await Promise.all([
@@ -109,8 +125,8 @@ export async function fetchUpcomingTripsForUser(userId: string): Promise<Upcomin
         .from("trips")
         .select("*")
         .eq("driver_id", userId)
-        .eq("status", "scheduled")
-        .gte("departure_at", nowIso),
+        .in("status", ACTIVE_TRIP_STATUSES)
+        .gte("departure_at", since),
       supabase
         .from("bookings")
         .select("*")
@@ -127,8 +143,8 @@ export async function fetchUpcomingTripsForUser(userId: string): Promise<Upcomin
           .from("trips")
           .select("*")
           .in("id", bookedTripIds)
-          .eq("status", "scheduled")
-          .gte("departure_at", nowIso)
+          .in("status", ACTIVE_TRIP_STATUSES)
+          .gte("departure_at", since)
       : { data: [] as Tables<"trips">[], error: null };
   if (passengerTripsError) throw passengerTripsError;
 
