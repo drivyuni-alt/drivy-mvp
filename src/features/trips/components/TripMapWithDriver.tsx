@@ -56,11 +56,13 @@ export function TripMapWithDriver({
 
           {publish.isSharing ? (
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              📍 Compartiendo tu ubicación con los pasajeros del viaje.
+              {publish.lastSentAt
+                ? `📍 Tus pasajeros te están viendo · última posición enviada a las ${formatTime(publish.lastSentAt)}`
+                : "📍 Buscando tu posición…"}
             </p>
           ) : (
             <Button size="sm" variant="outline" onClick={publish.start}>
-              Compartir mi ubicación con los pasajeros
+              {publish.error ? "Reintentar" : "Compartir mi ubicación con los pasajeros"}
             </Button>
           )}
         </div>

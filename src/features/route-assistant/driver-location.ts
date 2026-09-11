@@ -11,6 +11,36 @@ export interface DriverLocation extends LatLng {
   updatedAt: string;
 }
 
+/**
+ * Traduce el fallo a algo accionable. El navegador devuelve el MISMO código
+ * (`PERMISSION_DENIED`) tanto si el usuario bloqueó el sitio, como si lo bloqueó el
+ * sistema operativo, como si el navegador suprimió el diálogo sin llegar a preguntar. La
+ * primera versión daba por hecho lo primero y mandaba a la gente a revisar unos ajustes del
+ * navegador que estaban perfectamente bien. Cruzando el código con `navigator.permissions`
+ * se distinguen los tres casos, que se arreglan en sitios distintos.
+ */
+function describeGeolocationError(
+  positionError: GeolocationPositionError,
+  permission: PermissionState | "unknown"
+): string {
+  if (positionError.code === positionError.PERMISSION_DENIED) {
+    if (permission === "denied") {
+      return "La ubicación está bloqueada. Míralo en dos sitios: el icono a la izquierda de la dirección web (Ubicación → Permitir) y, en Windows, Configuración → Privacidad → Ubicación → 'Permitir que las aplicaciones de escritorio accedan a tu ubicación'.";
+    }
+    return "Tu navegador ha rechazado la petición sin preguntarte. Busca un icono de ubicación tachado a la derecha de la barra de direcciones y elige 'Permitir siempre en este sitio'.";
+  }
+
+  if (positionError.code === positionError.POSITION_UNAVAILABLE) {
+    return "Tu dispositivo no ha conseguido determinar dónde estás. En un ordenador esto es frecuente; desde el móvil suele funcionar a la primera.";
+  }
+
+  if (positionError.code === positionError.TIMEOUT) {
+    return "Se ha agotado el tiempo buscando tu posición. Vuelve a intentarlo.";
+  }
+
+  return "No hemos podido acceder a tu ubicación.";
+}
+
 /** No se escribe más de una vez cada 8 s aunque el GPS dispare mucho más a menudo. */
 const MIN_INTERVAL_MS = 8_000;
 /** …salvo que el coche se haya movido esto, en cuyo caso interesa actualizar antes. */
@@ -46,6 +76,8 @@ export function usePublishDriverLocation({
    */
   const [started, setStarted] = useState(false);
   const [permission, setPermission] = useState<PermissionState | "unknown">("unknown");
+  const [lastSentAt, setLastSentAt] = useState<string | null>(null);
+  const permissionRef = useRef<PermissionState | "unknown">("unknown");
   const lastSentAtRef = useRef(0);
   const lastPositionRef = useRef<LatLng | null>(null);
 
@@ -58,7 +90,20 @@ export function usePublishDriverLocation({
       .then((status) => {
         if (cancelled) return;
         setPermission(status.state);
+        permissionRef.current = status.state;
         if (status.state === "granted") setStarted(true);
+
+        // El permiso puede cambiarse desde los ajustes del navegador sin recargar la
+        // página; sin esto el conductor tendría que saber que hay que recargar.
+        status.onchange = () => {
+          if (cancelled) return;
+          setPermission(status.state);
+          permissionRef.current = status.state;
+          if (status.state === "granted") {
+            setError(null);
+            setStarted(true);
+          }
+        };
       })
       .catch(() => {
         // Safari antiguo no expone permissions.query para geolocation: se queda en
@@ -109,17 +154,17 @@ export function usePublishDriverLocation({
             { onConflict: "trip_id" }
           )
           .then(({ error: upsertError }) => {
-            if (!cancelled) setError(upsertError ? "No se pudo actualizar tu ubicación." : null);
+            if (cancelled) return;
+            setError(upsertError ? "No se pudo actualizar tu ubicación." : null);
+            // Se muestra en pantalla: sin esto, la única forma de saber si la ubicación
+            // está llegando de verdad era preguntarle a un pasajero.
+            if (!upsertError) setLastSentAt(new Date().toISOString());
           });
       },
       (positionError) => {
         if (cancelled) return;
         setStarted(false);
-        setError(
-          positionError.code === positionError.PERMISSION_DENIED
-            ? "Has bloqueado la ubicación para Drivy. Actívala en los ajustes del navegador para que tus pasajeros te vean."
-            : "No hemos podido acceder a tu ubicación. Comprueba que el GPS está encendido."
-        );
+        setError(describeGeolocationError(positionError, permissionRef.current));
       },
       { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 }
     );
@@ -133,6 +178,9 @@ export function usePublishDriverLocation({
   return {
     error,
     isSharing: started && error === null,
+    /** Hora del último envío confirmado por la base de datos, para poder enseñarlo. */
+    lastSentAt,
+    permission,
     /** Debe llamarse desde un clic real: es lo que hace que el navegador muestre el diálogo. */
     start: () => {
       setError(null);
