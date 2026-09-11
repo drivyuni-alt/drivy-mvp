@@ -17,14 +17,12 @@ import { useGoogleMaps } from "./GoogleMapsProvider";
 interface RouteMapProps {
   origin: LatLng;
   destination: LatLng;
-  /** Posición del conductor mientras la ruta está en curso; se pinta como coche en el mapa. */
-  driverLocation?: LatLng | null;
   className?: string;
 }
 
 const containerStyle: React.CSSProperties = { width: "100%", height: "100%" };
 
-export function RouteMap({ origin, destination, driverLocation, className }: RouteMapProps) {
+export function RouteMap({ origin, destination, className }: RouteMapProps) {
   const { isLoaded } = useGoogleMaps();
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
 
@@ -70,11 +68,7 @@ export function RouteMap({ origin, destination, driverLocation, className }: Rou
 
   return (
     <div className={className}>
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={driverLocation ?? center}
-        zoom={driverLocation ? 14 : 11}
-      >
+      <GoogleMap mapContainerStyle={containerStyle} center={center} zoom={11}>
         {directions ? (
           <DirectionsRenderer directions={directions} />
         ) : (
@@ -82,21 +76,6 @@ export function RouteMap({ origin, destination, driverLocation, className }: Rou
             <Marker position={origin} label="A" />
             <Marker position={destination} label="B" />
           </>
-        )}
-        {driverLocation && (
-          <Marker
-            position={driverLocation}
-            title="Tu conductor"
-            zIndex={1000}
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 9,
-              fillColor: "#111827",
-              fillOpacity: 1,
-              strokeColor: "#ffffff",
-              strokeWeight: 3,
-            }}
-          />
         )}
       </GoogleMap>
     </div>
