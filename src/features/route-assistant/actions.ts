@@ -202,6 +202,45 @@ export async function markPassengerPickedUpAction(passengerRowId: string): Promi
 }
 
 /**
+ * Kilómetros que se acreditan a cada participante al finalizar el viaje.
+ *
+ * Son los del recorrido REAL — origen → paradas de recogida → destino —, que
+ * `startRouteAction` ya calculó y guardó en `routes.distance_meters`. Antes se recalculaba
+ * aquí la línea recta origen→destino, y eso dejaba el impacto a menos de la mitad: en la
+ * simulación de un viaje con 3 recogidas se acreditaban 14,86 km frente a los 33,08 km que
+ * la propia app había almacenado. Los km, los euros ahorrados y el CO2 evitado salían todos
+ * a la baja.
+ *
+ * El respaldo Haversine no debería usarse nunca en el camino normal, porque la máquina de
+ * estados lo impide: `completeTripAction` exige que el viaje esté `in_progress`, y el único
+ * sitio de toda la aplicación que pone un viaje en `in_progress` es `startRouteAction`, que
+ * siempre escribe `distance_meters` antes. Se mantiene sólo porque la columna admite NULL y
+ * porque `trips.route_id` es `on delete set null`: si la ruta se borrase o se hubiese
+ * quedado a medias, es preferible acreditar una distancia baja que ninguna.
+ *
+ * (Un conductor que viaje solo no llega hasta aquí: `startRouteAction` exige al menos un
+ * pasajero confirmado, así que ese viaje no puede iniciarse ni, por tanto, finalizarse.)
+ */
+async function resolveCreditedDistanceKm(
+  admin: ReturnType<typeof createAdminClient>,
+  trip: Tables<"trips">
+): Promise<number> {
+  if (trip.route_id) {
+    const { data: route } = await admin
+      .from("routes")
+      .select("distance_meters")
+      .eq("id", trip.route_id)
+      .single();
+    if (route?.distance_meters != null) return route.distance_meters / 1000;
+  }
+
+  return haversineDistanceKm(
+    { lat: trip.origin_lat, lng: trip.origin_lng },
+    { lat: trip.destination_lat, lng: trip.destination_lng }
+  );
+}
+
+/**
  * Driver taps "Finalizar viaje": closes out the trip/bookings/roster, credits every
  * participant's `user_statistics` (distance, money/CO2 "saved" — see
  * src/lib/impact.ts for the assumptions behind those numbers, and
@@ -258,10 +297,7 @@ export async function completeTripAction(tripId: string): Promise<ActionResult> 
       : Promise.resolve(),
   ]);
 
-  const distanceKm = haversineDistanceKm(
-    { lat: trip.origin_lat, lng: trip.origin_lng },
-    { lat: trip.destination_lat, lng: trip.destination_lng }
-  );
+  const distanceKm = await resolveCreditedDistanceKm(admin, trip);
 
   const { data: driverStats } = await admin
     .from("user_statistics")
