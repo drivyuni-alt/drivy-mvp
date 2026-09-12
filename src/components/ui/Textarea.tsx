@@ -3,6 +3,8 @@ import type { TextareaHTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { FIELD_TEXT_SIZE } from "./field-text-size";
+
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
@@ -30,7 +32,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           rows={rows}
           aria-invalid={Boolean(error)}
           className={cn(
-            "w-full resize-none rounded-xl border border-neutral-300 bg-white px-3.5 py-2.5 text-sm text-ink-900",
+            // 16px en móvil: ver src/components/ui/field-text-size.ts
+            `w-full resize-none rounded-xl border border-neutral-300 bg-white px-3.5 py-2.5 ${FIELD_TEXT_SIZE} text-ink-900`,
             "placeholder:text-neutral-400 transition-colors",
             "focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500",
             "dark:border-neutral-700 dark:bg-surface-dark-muted dark:text-white",

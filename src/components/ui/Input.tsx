@@ -3,6 +3,8 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
+import { FIELD_TEXT_SIZE } from "./field-text-size";
+
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
@@ -37,7 +39,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             aria-invalid={Boolean(error)}
             className={cn(
-              "h-11 w-full rounded-xl border border-neutral-300 bg-white px-3.5 text-sm text-ink-900",
+              // 16px en móvil y tablet, 14px de ahí para arriba: ver el comentario sobre el
+              // zoom al enfocar en src/components/ui/field-text-size.ts
+              `h-11 w-full rounded-xl border border-neutral-300 bg-white px-3.5 ${FIELD_TEXT_SIZE} text-ink-900`,
               "placeholder:text-neutral-400 transition-colors",
               "focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500",
               "dark:border-neutral-700 dark:bg-surface-dark-muted dark:text-white",
