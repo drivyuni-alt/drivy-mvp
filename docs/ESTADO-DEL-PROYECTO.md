@@ -204,6 +204,8 @@ src/
 | `messages` | `on_message_created_touch_chat` | Mantiene `chats.last_message_at` |
 | `trips` / `bookings` | `*_within_seville` | Rechaza coordenadas fuera de Sevilla (INSERT y UPDATE de coordenadas) |
 | `bookings` | `bookings_seats_available` | Rechaza reservar más plazas de las libres (INSERT y UPDATE de `seats_requested`) |
+| `bookings` | `bookings_trip_must_be_scheduled` | Rechaza reservas sobre viajes que ya no están `scheduled` (sólo INSERT) |
+| `trips` | `trips_no_duplicate_active_idx` | Índice único: un conductor no puede tener dos viajes activos idénticos |
 | 7 tablas | `set_*_updated_at` | Marcas de tiempo |
 | `auth.users` | `handle_new_user` | Crea el perfil y `user_statistics` leyendo `raw_user_meta_data` |
 
@@ -211,7 +213,7 @@ RLS activo en las 17 tablas (31 políticas).
 
 ### Migraciones
 
-**Las 25 están aplicadas en producción.** No hay pendientes.
+**Las 27 están aplicadas en producción.** No hay pendientes.
 
 `0001`–`0013` esquema base, RLS, storage, realtime, reportes. Luego:
 
@@ -229,6 +231,8 @@ RLS activo en las 17 tablas (31 políticas).
 | `0023` | Guarda de plazas en `bookings`: no se puede reservar más de lo que queda libre |
 | `0024` | "Puntual estrella" exige 3 viajes (`min_trips`), no premiar el 100 por defecto |
 | `0025` | "5 estrellas" exige los 10 viajes que ya prometía su descripción |
+| `0026` | Índice único contra viajes duplicados por doble envío del formulario |
+| `0027` | Un viaje que no está `scheduled` no admite reservas nuevas |
 
 ---
 
@@ -568,14 +572,35 @@ El diseño completo está en el historial (`0021` y commits `1f63f53`, `45a3e4c`
   salto al pulsar "Iniciar ruta". Se mitigó (la mutación espera a que ambas consultas
   terminen, el roster conserva datos previos, el estado de carga ya no desmonta el panel)
   **pero no se confirmó la causa raíz**. Verificar en la próxima ruta real.
-- **Duplicado de viajes.** Se publicaron dos viajes idénticos con 1,5 s de diferencia.
-  Podría ser doble envío del formulario; no se ha investigado.
 - El aviso de error del formulario de publicar no se borra hasta reintentar.
 - **Un conductor que viaje solo no puede finalizar el viaje.** `startRouteAction` exige al
   menos un pasajero confirmado, así que un viaje sin reservas aceptadas nunca llega a
   `in_progress`, y `completeTripAction` exige `in_progress`: se queda en `scheduled` para
   siempre. No bloquea a nadie —el conductor puede cancelarlo, que es lo que en la práctica
   quiere hacer— y por eso se deja así de momento. Decidido no arreglarlo ahora.
+
+### Resueltos, por si vuelven
+
+- **Duplicado de viajes** (los dos viajes idénticos separados 1,5 s). Reproducido y
+  arreglado. No era un doble clic: el botón sí se deshabilita mientras la mutación está en
+  curso, pero `isPending` vuelve a false en cuanto responde el insert y el formulario sigue
+  montado hasta que Next termina de navegar. Medidos 287 ms de ventana con el botón otra vez
+  activo y los mismos datos en pantalla. Arreglado con un cerrojo `useRef` en
+  `PublishTripForm`, manteniendo el botón cargando hasta que la pantalla cambia, y con el
+  índice único `trips_no_duplicate_active_idx` (0026) debajo.
+
+### Comportamiento de la cancelación, tal como es
+
+Cancelar un viaje pone `trips.status`/`cancelled_at`, cancela las reservas vivas (`pending` y
+`accepted`) y notifica a cada pasajero. Dos cosas que **no** hace, a propósito:
+
+- La fila de `passengers` se queda como estaba (`waiting`). El enum de estados del roster no
+  tiene un "cancelado", y ninguna consulta la lee sin acotar por viaje, así que queda inerte
+  y conserva el registro de quién iba a bordo.
+- El chat sigue abierto. Es lo razonable: el pasajero acaba de quedarse sin coche y lo
+  primero que va a querer es preguntar.
+
+`available_seats` tampoco se restaura, que en un viaje cancelado da igual.
 
 ### Sin probar de punta a punta
 
