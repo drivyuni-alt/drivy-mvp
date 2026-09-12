@@ -40,7 +40,8 @@ export type NotificationType =
   | "new_message"
   | "new_rating"
   | "achievement_unlocked"
-  | "sos_alert";
+  | "sos_alert"
+  | "rate_trip_reminder";
 export type ReportReason =
   | "inappropriate_behavior"
   | "unsafe_driving"

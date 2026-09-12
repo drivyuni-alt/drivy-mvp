@@ -20,6 +20,7 @@ const ICONS: Record<Tables<"notifications">["type"], string> = {
   new_rating: "⭐",
   achievement_unlocked: "🏅",
   sos_alert: "🆘",
+  rate_trip_reminder: "🌟",
 };
 
 function notificationHref(notification: Tables<"notifications">): string | null {

@@ -213,7 +213,7 @@ RLS activo en las 17 tablas (31 políticas).
 
 ### Migraciones
 
-**Las 27 están aplicadas en producción.** No hay pendientes.
+**Las 28 están aplicadas en producción.** No hay pendientes.
 
 `0001`–`0013` esquema base, RLS, storage, realtime, reportes. Luego:
 
@@ -233,6 +233,7 @@ RLS activo en las 17 tablas (31 políticas).
 | `0025` | "5 estrellas" exige los 10 viajes que ya prometía su descripción |
 | `0026` | Índice único contra viajes duplicados por doble envío del formulario |
 | `0027` | Un viaje que no está `scheduled` no admite reservas nuevas |
+| `0028` | Tipo de notificación `rate_trip_reminder` |
 
 ---
 
@@ -470,9 +471,14 @@ guardan en una tabla que nadie mira.
 
 **Ruta:** `/notifications` · **Código:** `features/notifications/`
 
-10 tipos: `booking_requested`, `booking_accepted`, `booking_rejected`, `booking_cancelled`,
+11 tipos: `booking_requested`, `booking_accepted`, `booking_rejected`, `booking_cancelled`,
 `trip_starting_soon`, `passenger_picked_up`, `new_message`, `new_rating`,
-`achievement_unlocked`, `sos_alert`.
+`achievement_unlocked`, `sos_alert`, `rate_trip_reminder`.
+
+`rate_trip_reminder` lo dispara `completeTripAction` al terminar el viaje, en las dos
+direcciones (el pasajero valora al conductor, el conductor a sus pasajeros) y saltándose a
+quien ya haya valorado. El conductor recibe uno por viaje, no uno por pasajero. Enlaza al
+viaje, que es donde ya vive el formulario de valorar.
 
 Campana con contador de no leídas, en vivo por Realtime. **Solo in-app: no hay push ni
 email.** Si el usuario no tiene la app abierta, se entera al entrar.

@@ -343,6 +343,90 @@ export async function completeTripAction(tripId: string): Promise<ActionResult> 
   const participantIds = [trip.driver_id, ...passengerRows.map((row) => row.user_id)];
   await Promise.all(participantIds.map((userId) => unlockAchievementsForUser(admin, userId)));
 
+  await notifyPendingRatings(admin, trip, passengerRows);
+
   revalidatePath(`/trips/${tripId}`);
   return { success: true };
+}
+
+/**
+ * Pide a cada participante que valore, al terminar el viaje.
+ *
+ * Las valoraciones son mutuas desde la Fase 5 —el pasajero valora al conductor, el conductor
+ * a cada pasajero— pero nadie las pedía: había que volver al viaje por iniciativa propia y
+ * acordarse de que aquello existía. En la simulación de un viaje completo salió 1 valoración
+ * de las 6 posibles, y no por falta de ganas.
+ *
+ * Se avisa en las dos direcciones, no sólo a los pasajeros, porque la reputación del pasajero
+ * cuenta tanto como la del conductor: el motor de matching la usa, y un pasajero sin
+ * valoraciones no se distingue de uno malo.
+ *
+ * El conductor recibe UN aviso por todo el viaje, no uno por pasajero: son cuatro
+ * valoraciones que se rellenan en la misma pantalla, y cuatro notificaciones idénticas serían
+ * ruido.
+ *
+ * Se salta a quien ya haya valorado. Al terminar el viaje eso no le pasa a nadie —hasta ahora
+ * no se podía valorar—, pero la comprobación cuesta una consulta y evita que este aviso se
+ * duplique si algún día se dispara desde otro sitio (un recordatorio al día siguiente, por
+ * ejemplo).
+ */
+async function notifyPendingRatings(
+  admin: ReturnType<typeof createAdminClient>,
+  trip: Tables<"trips">,
+  passengerRows: Tables<"passengers">[]
+): Promise<void> {
+  if (passengerRows.length === 0) return;
+
+  const passengerIds = passengerRows.map((row) => row.user_id);
+  const [{ data: ratings }, { data: people }] = await Promise.all([
+    admin.from("ratings").select("rater_id").eq("trip_id", trip.id),
+    admin.from("users").select("id, first_name").in("id", [trip.driver_id, ...passengerIds]),
+  ]);
+
+  const nameById = new Map((people ?? []).map((person) => [person.id, person.first_name]));
+  const ratingsByRater = new Map<string, number>();
+  for (const rating of ratings ?? []) {
+    ratingsByRater.set(rating.rater_id, (ratingsByRater.get(rating.rater_id) ?? 0) + 1);
+  }
+
+  const driverName = nameById.get(trip.driver_id) ?? "tu conductor";
+  const pending: { user_id: string; title: string; body: string }[] = [];
+
+  // Al conductor le quedan valoraciones mientras no haya valorado a todos sus pasajeros.
+  if ((ratingsByRater.get(trip.driver_id) ?? 0) < passengerRows.length) {
+    const soloUno = passengerRows.length === 1;
+    const nombreUnico = soloUno ? nameById.get(passengerIds[0]!) : undefined;
+    pending.push({
+      user_id: trip.driver_id,
+      title: nombreUnico ? `Valora tu viaje con ${nombreUnico}` : "Valora a tus pasajeros",
+      body: soloUno
+        ? "Cuéntanos qué tal fue. Tu valoración ayuda a que los demás sepan con quién viajan."
+        : `Ya puedes valorar a los ${passengerRows.length} pasajeros de este viaje.`,
+    });
+  }
+
+  for (const passengerId of passengerIds) {
+    if ((ratingsByRater.get(passengerId) ?? 0) > 0) continue;
+    pending.push({
+      user_id: passengerId,
+      title: `Valora tu viaje con ${driverName}`,
+      body: "Cuéntanos qué tal fue. Tu valoración ayuda a que los demás sepan con quién viajan.",
+    });
+  }
+
+  if (pending.length === 0) return;
+
+  // Enlaza al viaje y no a un modal concreto: la pantalla del viaje ya enseña la valoración
+  // que toca a cada uno cuando está completado —al conductor la lista de pasajeros, al
+  // pasajero su propio formulario—, así que el enlace cae donde debe sin inventar una ruta.
+  const { error } = await admin.from("notifications").insert(
+    pending.map((item) => ({
+      user_id: item.user_id,
+      type: "rate_trip_reminder" as const,
+      title: item.title,
+      body: item.body,
+      data: { trip_id: trip.id },
+    }))
+  );
+  if (error) throw error;
 }
