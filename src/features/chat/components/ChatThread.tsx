@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 
-import { Skeleton } from "@/components/ui";
+import { Avatar, Skeleton } from "@/components/ui";
 
 import { useChat, useMarkChatRead, useMessages } from "../hooks";
 import { useRealtimeMessages, useTypingIndicator } from "../realtime";
@@ -54,12 +54,12 @@ export function ChatThread({ chatId, currentUserId }: { chatId: string; currentU
         >
           ←
         </Link>
-        <div className="h-9 w-9 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-          {otherUser.avatar_url && (
-            // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URL
-            <img src={otherUser.avatar_url} alt="" className="h-full w-full object-cover" />
-          )}
-        </div>
+        <Avatar
+          src={otherUser.avatar_url}
+          firstName={otherUser.first_name}
+          lastName={otherUser.last_name}
+          size="sm"
+        />
         <div>
           <p className="text-sm font-semibold text-ink-900 dark:text-white">
             {otherUser.first_name} {otherUser.last_name}

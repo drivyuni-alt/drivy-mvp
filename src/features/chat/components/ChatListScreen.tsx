@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { Badge, Card, CardContent, Skeleton } from "@/components/ui";
+import { Avatar, Badge, Card, CardContent, Skeleton } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
 
 import { useChats } from "../hooks";
@@ -47,12 +47,12 @@ export function ChatListScreen({ userId }: { userId: string }) {
         return (
           <Link key={chat.id} href={`/chats/${chat.id}`}>
             <Card className="flex items-center gap-3 p-4 transition-shadow hover:shadow-glow">
-              <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-                {otherUser.avatar_url && (
-                  // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URL
-                  <img src={otherUser.avatar_url} alt="" className="h-full w-full object-cover" />
-                )}
-              </div>
+              <Avatar
+                src={otherUser.avatar_url}
+                firstName={otherUser.first_name}
+                lastName={otherUser.last_name}
+                size="md"
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-ink-900 dark:text-white">
                   {otherUser.first_name} {otherUser.last_name}

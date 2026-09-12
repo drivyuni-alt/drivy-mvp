@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { Badge, Button, Card, buttonVariants } from "@/components/ui";
+import { Avatar, Badge, Button, Card, buttonVariants } from "@/components/ui";
 import { useChatForBooking } from "@/features/chat/hooks";
 import type { BookingWithPassenger } from "@/features/bookings/types";
 
@@ -52,12 +52,12 @@ function BookingRequestCard({
     <Card className="p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-            {passenger.avatar_url && (
-              // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URL
-              <img src={passenger.avatar_url} alt="" className="h-full w-full object-cover" />
-            )}
-          </div>
+          <Avatar
+            src={passenger.avatar_url}
+            firstName={passenger.first_name}
+            lastName={passenger.last_name}
+            size="sm"
+          />
           <div>
             <p className="text-sm font-semibold text-ink-900 dark:text-white">
               {passenger.first_name} {passenger.last_name}

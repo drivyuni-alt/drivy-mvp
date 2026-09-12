@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Badge, Card } from "@/components/ui";
+import { Avatar, Badge, Card } from "@/components/ui";
 import { MatchScoreBadge } from "@/features/matching/components/MatchScoreBadge";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import type { Tables } from "@/lib/supabase/types";
@@ -51,12 +51,12 @@ export function TripCard({ trip, driver, matchScore, role, bookingStatus }: Trip
 
         <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3 dark:border-neutral-800">
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-              {driver.avatar_url && (
-                // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URL
-                <img src={driver.avatar_url} alt="" className="h-full w-full object-cover" />
-              )}
-            </div>
+            <Avatar
+              src={driver.avatar_url}
+              firstName={driver.first_name}
+              lastName={driver.last_name}
+              size="xs"
+            />
             <span className="text-xs font-medium text-ink-900 dark:text-white">
               {driver.first_name} · ⭐ {driver.rating_avg.toFixed(1)}
             </span>

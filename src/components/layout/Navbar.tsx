@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Avatar } from "@/components/ui";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import type { Tables } from "@/lib/supabase/types";
 import { cn } from "@/lib/utils";
@@ -51,12 +52,12 @@ export function Navbar({ profile }: { profile: Tables<"users"> }) {
             <span className="hidden text-sm font-medium text-ink-900 dark:text-white sm:inline">
               {profile.first_name}
             </span>
-            <div className="h-9 w-9 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-              {profile.avatar_url && (
-                // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URL, avoids next/image domain config for MVP
-                <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-              )}
-            </div>
+            <Avatar
+              src={profile.avatar_url}
+              firstName={profile.first_name}
+              lastName={profile.last_name}
+              size="sm"
+            />
           </Link>
         </div>
       </div>

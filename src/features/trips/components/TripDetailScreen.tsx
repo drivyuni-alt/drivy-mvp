@@ -1,7 +1,7 @@
 "use client";
 
 import { RouteMap } from "@/components/maps/RouteMap";
-import { Badge, Card, CardContent, Skeleton } from "@/components/ui";
+import { Avatar, Badge, Card, CardContent, Skeleton } from "@/components/ui";
 import { BookingPanel } from "@/features/bookings/components/BookingPanel";
 import { BookingRequestsPanel } from "@/features/bookings/components/BookingRequestsPanel";
 import { PassengerRatingList } from "@/features/bookings/components/PassengerRatingList";
@@ -68,12 +68,12 @@ export function TripDetailScreen({
 
       <Card className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-            {driver.avatar_url && (
-              // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URL
-              <img src={driver.avatar_url} alt="" className="h-full w-full object-cover" />
-            )}
-          </div>
+          <Avatar
+            src={driver.avatar_url}
+            firstName={driver.first_name}
+            lastName={driver.last_name}
+            size="lg"
+          />
           <div>
             <p className="text-sm font-semibold text-ink-900 dark:text-white">
               {driver.first_name} {driver.last_name}

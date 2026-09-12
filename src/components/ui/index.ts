@@ -6,6 +6,9 @@ export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
 
+export { Avatar } from "./Avatar";
+export type { AvatarProps, AvatarSize } from "./Avatar";
+
 export { Badge } from "./Badge";
 export type { BadgeProps, BadgeVariant } from "./Badge";
 

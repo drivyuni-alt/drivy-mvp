@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { Badge, Card, CardContent, Skeleton, buttonVariants } from "@/components/ui";
+import { Avatar, Badge, Card, CardContent, Skeleton, buttonVariants } from "@/components/ui";
 import { useSignOut } from "@/features/auth/hooks";
 import { AchievementGrid } from "@/features/gamification/components/AchievementGrid";
 import { UniversityRankingList } from "@/features/gamification/components/UniversityRankingList";
@@ -41,12 +41,12 @@ export function ProfileScreen({ userId }: { userId: string }) {
     <div className="flex flex-col gap-6">
       <Card className="p-5">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-            {user.avatar_url && (
-              // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URL
-              <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
-            )}
-          </div>
+          <Avatar
+            src={user.avatar_url}
+            firstName={user.first_name}
+            lastName={user.last_name}
+            size="xl"
+          />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-xl font-bold text-ink-900 dark:text-white">
               {user.first_name} {user.last_name}
