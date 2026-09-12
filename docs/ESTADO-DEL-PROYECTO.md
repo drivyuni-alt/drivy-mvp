@@ -610,11 +610,20 @@ vivo del conductor.
 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `NEXT_PUBLIC_APP_URL`. Las mismas están en Vercel
 (Production + Preview). **Las variables nuevas no se aplican hasta un redespliegue.**
 
+Además, sólo en local y sólo para aplicar migraciones, `SUPABASE_DB_URL` (ver más abajo).
+Esa no va en Vercel.
+
 ### Migraciones: la CLI de Supabase NO funciona aquí
 
 `npx supabase db push` falla con un error `uv_spawn` en este entorno Windows. Se aplican con
 un script Node + `pg` contra la cadena de conexión del **Session pooler**
-(`aws-1-eu-west-2.pooler.supabase.com:5432`).
+(`aws-1-eu-west-2.pooler.supabase.com:5432`), que vive en `.env.local` como
+`SUPABASE_DB_URL`. La app no la usa —se conecta con `anon` y `service_role`—, así que existe
+sólo para esto.
+
+Se saca del panel de Supabase con **Connect** (botón de la barra superior) →
+*Direct · Connection string* → método **Session pooler** → Type **URI**. Si se pierde la
+contraseña, *Settings → Database → Reset database password* la regenera sin romper nada.
 
 > ⚠️ **La conexión directa `db.<ref>.supabase.co` no sirve: solo resuelve por IPv6** y
 > muchas redes no tienen salida IPv6. Usar siempre el pooler.
