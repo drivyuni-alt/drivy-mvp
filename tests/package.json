@@ -1,0 +1,4 @@
+{
+  "//": "Sólo marca los tests como módulos ES, para que Node no tenga que adivinarlo en cada archivo. Se pone aquí y no en el package.json raíz porque cambiar el tipo de todo el proyecto afectaría a la build de Next.",
+  "type": "module"
+}

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "node --import ./tests/ts-resolver.mjs --test \"tests/**/*.test.ts\"",
     "backup": "node scripts/backup-db.mjs"
   },
   "dependencies": {
