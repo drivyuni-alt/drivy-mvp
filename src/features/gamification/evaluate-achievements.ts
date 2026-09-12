@@ -18,12 +18,27 @@ function parseCriteria(criteria: Tables<"achievements">["criteria"]): Achievemen
     typeof criteria.count === "number" &&
     CRITERIA_TYPES.includes(criteria.type as AchievementCriteriaType)
   ) {
-    return { type: criteria.type as AchievementCriteriaType, count: criteria.count };
+    return {
+      type: criteria.type as AchievementCriteriaType,
+      count: criteria.count,
+      minTrips: typeof criteria.min_trips === "number" ? criteria.min_trips : 0,
+    };
   }
   return null;
 }
 
+/**
+ * Algunos criterios se miden sobre estadísticas que nacen con un valor "bueno" por defecto
+ * y no sobre algo que el usuario haya demostrado. `user_statistics.punctuality_score`
+ * arranca en 100 para cualquier cuenta recién creada, así que "Puntual estrella"
+ * (puntualidad > 95) se desbloqueaba en el primerísimo viaje, sin un solo dato real de
+ * puntualidad detrás. El `min_trips` del criterio es la condición de volumen mínimo que
+ * evita premiar un valor por defecto: hasta que no hay suficientes viajes completados, el
+ * logro no está en juego.
+ */
 function meetsCriteria(criteria: AchievementCriteria, context: AchievementContext): boolean {
+  if (context.totalTrips < criteria.minTrips) return false;
+
   switch (criteria.type) {
     case "trips_completed":
       return context.totalTrips >= criteria.count;

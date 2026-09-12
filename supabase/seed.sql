@@ -288,8 +288,12 @@ insert into public.notifications (user_id, type, title, body, data, read_at) val
 insert into public.achievements (id, code, name, description, icon, points, criteria) values
   ('99999999-9999-9999-9999-999999999901', 'first_trip', 'Primer viaje', 'Completa tu primer viaje en Drivy.', '🚗', 50, '{"type":"trips_completed","count":1}'),
   ('99999999-9999-9999-9999-999999999902', 'eco_warrior', 'Eco Warrior', 'Ahorra más de 20kg de CO2 compartiendo coche.', '🌱', 100, '{"type":"co2_saved_kg","count":20}'),
-  ('99999999-9999-9999-9999-999999999903', 'punctual_star', 'Puntual estrella', 'Mantén una puntuación de puntualidad superior al 95%.', '⏱️', 75, '{"type":"punctuality_score","count":95}'),
-  ('99999999-9999-9999-9999-999999999904', 'five_star', '5 estrellas', 'Consigue una valoración media de 5.0 con al menos 10 viajes.', '⭐', 150, '{"type":"rating_avg","count":5}');
+  -- `min_trips` evita premiar el 100 por defecto de punctuality_score en el primer viaje;
+  -- ver supabase/migrations/0024_punctual_star_requires_trips.sql.
+  ('99999999-9999-9999-9999-999999999903', 'punctual_star', 'Puntual estrella', 'Mantén una puntuación de puntualidad superior al 95%.', '⏱️', 75, '{"type":"punctuality_score","count":95,"min_trips":3}'),
+  -- Los 10 viajes que promete la descripción, ahora también en el criterio; ver
+  -- supabase/migrations/0025_five_star_requires_trips.sql.
+  ('99999999-9999-9999-9999-999999999904', 'five_star', '5 estrellas', 'Consigue una valoración media de 5.0 con al menos 10 viajes.', '⭐', 150, '{"type":"rating_avg","count":5,"min_trips":10}');
 
 insert into public.user_achievements (user_id, achievement_id) values
   ('22222222-2222-2222-2222-222222222201', '99999999-9999-9999-9999-999999999901'),
