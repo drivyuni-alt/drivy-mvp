@@ -72,6 +72,20 @@ export function RouteAssistantPanel({ trip }: { trip: Tables<"trips"> }) {
     );
   }
 
+  // Un viaje cancelado no decía nada en ninguna parte: al recargar la pantalla el conductor
+  // veía el viaje con su aspecto normal, sólo que sin el botón de cancelar, y las reservas
+  // marcadas en rojo. Nada le confirmaba que la cancelación hubiera surtido efecto.
+  if (trip.status === "cancelled") {
+    return (
+      <Card className="p-4">
+        <Badge variant="danger">Viaje cancelado</Badge>
+        <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+          Se avisó a los pasajeros y sus reservas quedaron canceladas.
+        </p>
+      </Card>
+    );
+  }
+
   if (trip.status !== "in_progress") return null;
 
   const mapsUrl = buildGoogleMapsDeepLink(

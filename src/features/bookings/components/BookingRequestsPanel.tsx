@@ -6,6 +6,7 @@ import { Badge, Button, Card, buttonVariants } from "@/components/ui";
 import { useChatForBooking } from "@/features/chat/hooks";
 import type { BookingWithPassenger } from "@/features/bookings/types";
 
+import { BOOKING_STATUS_LABEL } from "../booking-status-label";
 import { useBookingsForTrip, useRespondToBooking } from "../hooks";
 import type { BookingDecision } from "../types";
 
@@ -91,7 +92,7 @@ function BookingRequestCard({
               </Link>
             )}
             <Badge variant={booking.status === "accepted" ? "success" : "danger"}>
-              {booking.status === "accepted" ? "Aceptada" : "Rechazada"}
+              {BOOKING_STATUS_LABEL[booking.status]}
             </Badge>
           </div>
         )}

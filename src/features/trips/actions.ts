@@ -46,9 +46,13 @@ export async function cancelTripAction(tripId: string): Promise<ActionResult> {
 
   const admin = createAdminClient();
 
+  // `cancelled_at` se rellena aquí igual que `started_at` y `completed_at` en sus acciones.
+  // Se quedaba a null: la columna existía desde la Fase 1 y nadie la escribía, así que no
+  // había forma de saber cuándo se canceló un viaje ni de distinguir una cancelación de hace
+  // un mes de una de hace cinco minutos.
   const { error: statusError } = await admin
     .from("trips")
-    .update({ status: "cancelled" })
+    .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
     .eq("id", tripId);
   if (statusError) {
     return { success: false, error: "No se pudo cancelar el viaje." };

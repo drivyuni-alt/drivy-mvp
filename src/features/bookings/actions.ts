@@ -77,6 +77,13 @@ export async function createBookingAction(input: CreateBookingInput): Promise<Ac
   if (tripError || !trip) {
     return { success: false, error: "Viaje no encontrado." };
   }
+  // Un viaje que ya no está `scheduled` no admite reservas nuevas. No se comprobaba: el
+  // buscador sólo muestra viajes programados, pero se llega a la pantalla de un viaje por
+  // enlace directo o desde una notificación, y un viaje cancelado seguía dejando reservar —
+  // el pasajero se quedaba esperando un coche que el conductor ya había dado de baja.
+  if (trip.status !== "scheduled") {
+    return { success: false, error: "Este viaje ya no admite reservas." };
+  }
   if (trip.available_seats < input.seatsRequested) {
     return { success: false, error: "No quedan plazas suficientes en este viaje." };
   }

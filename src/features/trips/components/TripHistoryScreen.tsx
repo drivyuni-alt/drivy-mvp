@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { Badge, Card, CardContent, Skeleton } from "@/components/ui";
+import { BOOKING_STATUS_LABEL } from "@/features/bookings/booking-status-label";
 import { useMyBookings } from "@/features/bookings/hooks";
 import { formatDateTime, formatPrice } from "@/lib/format";
 import type { Tables } from "@/lib/supabase/types";
@@ -20,14 +21,6 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "cancelled", label: "Cancelados" },
   { key: "bookings", label: "Reservas" },
 ];
-
-const BOOKING_STATUS_LABEL: Record<Tables<"bookings">["status"], string> = {
-  pending: "Pendiente",
-  accepted: "Aceptada",
-  rejected: "Rechazada",
-  cancelled: "Cancelada",
-  completed: "Completada",
-};
 
 export function TripHistoryScreen({ userId }: { userId: string }) {
   const [tab, setTab] = useState<Tab>("upcoming");
