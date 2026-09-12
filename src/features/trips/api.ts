@@ -235,3 +235,15 @@ export async function createTrip(input: CreateTripInput): Promise<Tables<"trips"
   if (error) throw error;
   return data;
 }
+
+/**
+ * El viaje chocó contra `trips_no_duplicate_active_idx` (migración 0026): el mismo conductor
+ * ya tiene un viaje activo con ese origen, destino y hora de salida. No es un fallo que
+ * tenga sentido reintentar —el viaje existe—, así que el formulario lo dice con otras
+ * palabras en vez de invitar a pulsar otra vez.
+ */
+export function isDuplicateTripError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error)) return false;
+  const { code } = error as { code: unknown };
+  return code === "23505";
+}

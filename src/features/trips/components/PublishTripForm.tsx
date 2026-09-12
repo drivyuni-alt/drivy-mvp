@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
@@ -9,6 +9,7 @@ import { useGoogleMaps } from "@/components/maps/GoogleMapsProvider";
 import { Button, Input, Select, Skeleton, Textarea } from "@/components/ui";
 import { AddVehicleForm } from "@/features/vehicles/components/AddVehicleForm";
 
+import { isDuplicateTripError } from "../api";
 import { useCreateTrip, useVehiclesForUser } from "../hooks";
 import type { CreateTripInput } from "../types";
 
@@ -43,6 +44,22 @@ export function PublishTripForm({ driverId }: { driverId: string }) {
   const [notes, setNotes] = useState("");
   const [placeError, setPlaceError] = useState<string | null>(null);
 
+  /**
+   * Cerrojo contra publicar el mismo viaje dos veces. Que el botón se deshabilite con
+   * `isPending` no basta, y se comprobó midiéndolo: `isPending` vuelve a false en cuanto el
+   * insert responde, pero el formulario sigue montado hasta que Next termina la navegación
+   * a la pantalla del viaje. Entre una cosa y otra quedaban 287 ms —en un móvil con mala
+   * cobertura, segundos— con el botón otra vez activo, los mismos datos en pantalla y
+   * ninguna señal de que algo haya pasado. Quien pulsa de nuevo ahí publica un viaje
+   * gemelo: reproducido dos veces, con 27 ms y 93 ms de diferencia. Es lo que explica los
+   * dos viajes idénticos separados 1,5 s que aparecieron en producción.
+   *
+   * Un `useRef` y no un estado a propósito: se actualiza en el acto, así que también frena
+   * dos envíos disparados en el mismo tick, antes de que React haya podido repintar nada.
+   * Se suelta si la mutación falla, para que un error de red de verdad se pueda reintentar.
+   */
+  const published = useRef(false);
+
   if (vehicles.isLoading) {
     return <Skeleton className="h-64 w-full" />;
   }
@@ -61,6 +78,7 @@ export function PublishTripForm({ driverId }: { driverId: string }) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (published.current) return;
     if (!date || !time) return;
 
     // Con Maps disponible, escribir la dirección a mano sin elegirla del desplegable no
@@ -95,8 +113,12 @@ export function PublishTripForm({ driverId }: { driverId: string }) {
       notes,
     };
 
+    published.current = true;
     createTrip.mutate(input, {
       onSuccess: (trip) => router.push(`/trips/${trip.id}`),
+      onError: () => {
+        published.current = false;
+      },
     });
   }
 
@@ -189,10 +211,19 @@ export function PublishTripForm({ driverId }: { driverId: string }) {
       />
 
       {createTrip.isError && (
-        <p className="text-sm text-danger">No se pudo publicar el viaje. Inténtalo de nuevo.</p>
+        <p className="text-sm text-danger">
+          {isDuplicateTripError(createTrip.error)
+            ? "Ya tienes publicado ese mismo viaje. Lo encontrarás en tu pantalla de inicio."
+            : "No se pudo publicar el viaje. Inténtalo de nuevo."}
+        </p>
       )}
 
-      <Button type="submit" size="lg" isLoading={createTrip.isPending}>
+      {/*
+        El botón sigue girando después de que la mutación termine, no sólo mientras está en
+        curso: `isSuccess` lo mantiene bloqueado durante la navegación a la pantalla del
+        viaje, que es justo el hueco por el que se colaba el segundo envío.
+      */}
+      <Button type="submit" size="lg" isLoading={createTrip.isPending || createTrip.isSuccess}>
         Publicar viaje
       </Button>
     </form>
