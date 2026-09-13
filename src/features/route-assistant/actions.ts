@@ -12,29 +12,29 @@ import { createClient } from "@/lib/supabase/server";
 import type { RouteWaypoint, Tables } from "@/lib/supabase/types";
 import type { ActionResult } from "@/types/action-result";
 
-import type { RealRouteTimings } from "./types";
+import type { RealRouteMetrics } from "./types";
 
 /**
- * Los tiempos llegan del navegador del conductor, así que se comprueban antes de usarlos:
+ * Las medidas llegan del navegador del conductor, así que se comprueban antes de usarlas:
  * tienen que cubrir exactamente a los pasajeros de este viaje, ni uno más ni uno menos, y ser
- * segundos positivos. Basta con que alguien haya aceptado una reserva mientras el conductor
+ * números positivos. Basta con que alguien haya aceptado una reserva mientras el conductor
  * tenía la pantalla abierta para que correspondan a otro recorrido.
  */
-function timingsMatchRoster(
-  timings: RealRouteTimings | undefined,
+function metricsMatchRoster(
+  metrics: RealRouteMetrics | undefined,
   stops: { passengerId: string }[]
 ): boolean {
-  if (!timings) return false;
+  if (!metrics) return false;
 
-  const provided = Object.keys(timings.etaSecondsByPassengerId);
+  const provided = Object.keys(metrics.etaSecondsByPassengerId);
   if (provided.length !== stops.length) return false;
-  if (!stops.every((stop) => stop.passengerId in timings.etaSecondsByPassengerId)) return false;
+  if (!stops.every((stop) => stop.passengerId in metrics.etaSecondsByPassengerId)) return false;
 
-  const values = Object.values(timings.etaSecondsByPassengerId);
+  const positive = (value: number) => Number.isFinite(value) && value > 0;
   return (
-    values.every((seconds) => Number.isFinite(seconds) && seconds > 0) &&
-    Number.isFinite(timings.totalDurationSeconds) &&
-    timings.totalDurationSeconds > 0
+    Object.values(metrics.etaSecondsByPassengerId).every(positive) &&
+    positive(metrics.totalDurationSeconds) &&
+    positive(metrics.totalDistanceMeters)
   );
 }
 
@@ -45,14 +45,14 @@ function timingsMatchRoster(
  * because most of these writes touch tables passengers/notifications don't have an
  * `authenticated` write policy for — see docs/06-decisiones-fase-4.md.
  *
- * `timings` son los tiempos reales que el navegador del conductor le ha pedido a Google
- * Directions (ver directions.ts). Llegan de fuera porque la clave de Maps está restringida
- * por dominio y desde aquí no se puede llamar. Son opcionales a propósito: si Google no
- * contestó, la ruta arranca igual con la estimación de `planPickupRoute`.
+ * `metrics` son el tiempo y la distancia reales que el navegador del conductor le ha pedido a
+ * Google Directions (ver directions.ts). Llegan de fuera porque la clave de Maps está
+ * restringida por dominio y desde aquí no se puede llamar. Son opcionales a propósito: si
+ * Google no contestó, la ruta arranca igual con la estimación de `planPickupRoute`.
  */
 export async function startRouteAction(
   tripId: string,
-  timings?: RealRouteTimings
+  metrics?: RealRouteMetrics
 ): Promise<ActionResult> {
   const supabase = await createClient();
   const {
@@ -113,20 +113,28 @@ export async function startRouteAction(
   );
 
   /**
-   * Los tiempos del cliente sólo se aceptan si cubren exactamente a los pasajeros que hay
+   * Las medidas del cliente sólo se aceptan si cubren exactamente a los pasajeros que hay
    * ahora mismo en el viaje. Si no coinciden —alguien aceptó una reserva mientras el
-   * conductor tenía la pantalla abierta, por ejemplo—, los tiempos corresponden a otro
-   * recorrido y repartirlos sería peor que estimarlos: se descartan enteros.
+   * conductor tenía la pantalla abierta, por ejemplo—, corresponden a otro recorrido y
+   * repartirlas sería peor que estimarlas: se descartan enteras, tiempo y distancia.
    */
-  const realEtaSeconds = timingsMatchRoster(timings, plan.stops)
-    ? timings!.etaSecondsByPassengerId
-    : null;
+  const realMetrics = metricsMatchRoster(metrics, plan.stops) ? metrics! : null;
 
   const etaSecondsFor = (stop: (typeof plan.stops)[number]) =>
-    realEtaSeconds?.[stop.passengerId] ?? stop.etaMinutesFromStart * 60;
+    realMetrics?.etaSecondsByPassengerId[stop.passengerId] ?? stop.etaMinutesFromStart * 60;
 
   const totalDurationSeconds =
-    realEtaSeconds && timings ? timings.totalDurationSeconds : plan.totalDurationMinutes * 60;
+    realMetrics?.totalDurationSeconds ?? plan.totalDurationMinutes * 60;
+
+  /**
+   * Kilómetros por carretera, de la misma respuesta de Directions que trajo los tiempos. No
+   * es sólo cosmética: desde el arreglo de la distancia acreditada, este número es el que
+   * `completeTripAction` reparte como km, euros ahorrados y CO2 evitado entre todos los
+   * participantes. Medido en un viaje con 3 recogidas, la línea recta daba 33,08 km donde el
+   * coche hace 55,70 — el impacto se quedaba a poco más de la mitad del real.
+   */
+  const totalDistanceMeters =
+    realMetrics?.totalDistanceMeters ?? Math.round(plan.totalDistanceKm * 1000);
 
   const waypoints: RouteWaypoint[] = plan.stops.map((stop) => {
     const passengerRow = passengerRows.find((row) => row.user_id === stop.passengerId);
@@ -148,7 +156,7 @@ export async function startRouteAction(
     const { error } = await admin
       .from("routes")
       .update({
-        distance_meters: Math.round(plan.totalDistanceKm * 1000),
+        distance_meters: totalDistanceMeters,
         duration_seconds: totalDurationSeconds,
         waypoints,
       })
@@ -164,7 +172,7 @@ export async function startRouteAction(
         destination_address: trip.destination_address,
         destination_lat: trip.destination_lat,
         destination_lng: trip.destination_lng,
-        distance_meters: Math.round(plan.totalDistanceKm * 1000),
+        distance_meters: totalDistanceMeters,
         duration_seconds: totalDurationSeconds,
         waypoints,
       })

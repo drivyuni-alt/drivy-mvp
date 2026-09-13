@@ -371,8 +371,9 @@ fricción contra el caso común, no moderación infalible.
 Al pulsar **"Iniciar ruta"** (solo el conductor, solo con pasajeros confirmados):
 
 1. Calcula el **orden óptimo exacto** de recogidas (`lib/route-planner.ts`)
-2. Pide a **Google Directions, desde el navegador del conductor**, el tiempo real de ese
-   recorrido, y saca de ahí el ETA de cada parada (respaldo: distancia acumulada / 35 km/h)
+2. Pide a **Google Directions, desde el navegador del conductor**, el tiempo y la distancia
+   reales de ese recorrido, y saca de ahí el ETA de cada parada y los km del viaje
+   (respaldo: Haversine y 35 km/h)
 3. Persiste el plan en `routes.waypoints`
 4. `trips.status = 'in_progress'`, `started_at = now()`
 5. Escribe `pickup_order` y `eta_seconds` en cada `passengers`
@@ -390,20 +391,25 @@ Sevilla con 2-5 pasajeros: el algoritmo viejo era peor en el **55,4%** de los ca
 carretera. Afinarlo exigiría la Directions API con `optimizeWaypoints`, **imposible desde el
 servidor** porque la clave está restringida por dominio.
 
-**Los TIEMPOS sí son reales** (`features/route-assistant/directions.ts`). Se le piden a
-Directions desde el navegador del conductor al pulsar "Iniciar ruta", con
-`optimizeWaypoints: false` —a Google se le pregunta cuánto se tarda, no cómo ordenar—, y se
-mandan al servidor con la acción para que los guarde en `passengers.eta_seconds` y
-`routes.duration_seconds`. El servidor los valida antes de usarlos: tienen que cubrir
-exactamente a los pasajeros del viaje. Si Google no contesta, o no hay clave, o el roster ha
-cambiado, se cae a la estimación de siempre y la ruta arranca igual.
+**El TIEMPO y la DISTANCIA sí son reales** (`features/route-assistant/directions.ts`). Se le
+piden a Directions desde el navegador del conductor al pulsar "Iniciar ruta", con
+`optimizeWaypoints: false` —a Google se le pregunta cuánto cuesta el recorrido, no cómo
+ordenarlo—, y se mandan al servidor con la acción para que los guarde en
+`passengers.eta_seconds`, `routes.duration_seconds` y `routes.distance_meters`. Una sola
+petición: cada tramo trae sus metros al lado de sus segundos. El servidor valida las medidas
+antes de usarlas: tienen que cubrir exactamente a los pasajeros del viaje. Si Google no
+contesta, o no hay clave, o el roster ha cambiado, se cae a la estimación de siempre y la
+ruta arranca igual.
 
-**`routes.distance_meters` sigue siendo la línea recta**, y eso importa porque desde el
-arreglo de la distancia acreditada es el número que alimenta los km, los euros y el CO₂ de
-cada participante. Medido en un viaje real con 3 recogidas: 33,08 km en línea recta frente a
-**55,70 km por carretera**. La misma respuesta de Directions ya trae `legs[i].distance.value`,
-así que es cambiar dónde se lee — **pendiente de decidir**, porque subiría el impacto
-acreditado de todos los viajes futuros casi al doble.
+La distancia importa el doble porque, desde el arreglo de la distancia acreditada, es el
+número que alimenta los km, los euros y el CO₂ de cada participante. Medido en un viaje real
+con 3 recogidas: **33,08 km en línea recta frente a 55,70 km por carretera** — el impacto se
+quedaba a poco más de la mitad.
+
+> ⚠️ Los umbrales de los logros están calibrados contra los números viejos. Con la distancia
+> real, un conductor con 3 pasajeros suma 20,05 kg de CO₂ **en un solo viaje** y desbloquea
+> "Eco Warrior" (umbral: 20 kg) el primer día. Mismo problema que tenían "Puntual estrella" y
+> "5 estrellas" antes de la `0024`/`0025`. **Pendiente de decidir** si se sube el umbral.
 
 Durante la ruta: lista ordenada de paradas con dirección y ETA, botón **"Recogido"** por
 pasajero (notifica `passenger_picked_up`), deep link a Google Maps con las paradas ya

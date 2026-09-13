@@ -8,7 +8,7 @@ import { buildGoogleMapsDeepLink } from "@/lib/route-planner";
 import { formatDurationMinutes } from "@/lib/geo";
 import type { Tables } from "@/lib/supabase/types";
 
-import { fetchRealRouteTimings } from "../directions";
+import { fetchRealRouteMetrics } from "../directions";
 import { useCompleteTrip, useMarkPassengerPickedUp, usePassengerRoster, useStartRoute } from "../hooks";
 import { useRealtimePassengerRoster } from "../realtime";
 
@@ -22,21 +22,21 @@ export function RouteAssistantPanel({ trip }: { trip: Tables<"trips"> }) {
   const { isLoaded: mapsReady } = useGoogleMaps();
   useRealtimePassengerRoster(trip.id);
 
-  // Pedirle los tiempos a Google es parte de pulsar el botón, así que su espera cuenta como
-  // parte de la mutación: sin esto el botón se quedaría quieto durante esa pausa.
+  // Preguntarle a Google es parte de pulsar el botón, así que su espera cuenta como parte de
+  // la mutación: sin esto el botón se quedaría quieto durante esa pausa.
   const [askingGoogle, setAskingGoogle] = useState(false);
 
   /**
-   * Los tiempos reales se piden aquí, en el navegador del conductor, porque la clave de Maps
-   * está restringida por dominio y el servidor no puede llamar a Directions (ver
-   * ../directions.ts). Si Google no contesta —sin red, sin clave, cuota agotada— se arranca
-   * igual: el servidor estima con Haversine como hacía antes. Iniciar la ruta no puede
-   * depender de que un tercero conteste.
+   * El tiempo y la distancia reales se piden aquí, en el navegador del conductor, porque la
+   * clave de Maps está restringida por dominio y el servidor no puede llamar a Directions
+   * (ver ../directions.ts). Si Google no contesta —sin red, sin clave, cuota agotada— se
+   * arranca igual: el servidor estima con Haversine como hacía antes. Iniciar la ruta no
+   * puede depender de que un tercero conteste.
    */
   async function handleStartRoute() {
     setAskingGoogle(true);
-    const timings = mapsReady
-      ? await fetchRealRouteTimings(
+    const metrics = mapsReady
+      ? await fetchRealRouteMetrics(
           { lat: trip.origin_lat, lng: trip.origin_lng },
           { lat: trip.destination_lat, lng: trip.destination_lng },
           roster.data ?? []
@@ -44,7 +44,7 @@ export function RouteAssistantPanel({ trip }: { trip: Tables<"trips"> }) {
       : null;
     setAskingGoogle(false);
 
-    startRoute.mutate({ tripId: trip.id, timings: timings ?? undefined });
+    startRoute.mutate({ tripId: trip.id, metrics: metrics ?? undefined });
   }
 
   // Sólo en la primera carga, cuando de verdad no hay nada que enseñar. En las recargas

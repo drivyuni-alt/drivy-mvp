@@ -1,7 +1,7 @@
 import { planPickupRoute } from "@/lib/route-planner";
 import type { LatLng } from "@/lib/geo";
 
-import type { PassengerWithProfile, RealRouteTimings } from "./types";
+import type { PassengerWithProfile, RealRouteMetrics } from "./types";
 
 /**
  * El límite de Google para paradas intermedias en `DirectionsService` es de 25. El
@@ -13,28 +13,31 @@ import type { PassengerWithProfile, RealRouteTimings } from "./types";
 const MAX_WAYPOINTS = 25;
 
 /**
- * Tiempos de trayecto reales para la ruta de recogidas, pedidos a Google desde el navegador.
+ * Tiempo y distancia reales del recorrido de recogidas, pedidos a Google desde el navegador.
  *
  * Por qué desde el navegador y no desde el servidor, que sería lo natural: la clave de Maps
  * está restringida por dominio, así que una llamada desde el servidor devuelve REQUEST_DENIED
  * (es la misma razón por la que el orden de las paradas se calcula con Haversine en vez de
  * con `optimizeWaypoints`). El conductor ya tiene el SDK cargado en su pantalla, así que se
- * le piden los tiempos ahí y se mandan al servidor con la acción. Sin segunda clave y sin
+ * le piden las medidas ahí y se mandan al servidor con la acción. Sin segunda clave y sin
  * proxy.
  *
- * Lo que se sustituye es sólo el TIEMPO. El orden de recogida lo sigue decidiendo
+ * La distancia sale de la MISMA respuesta que los tiempos, no de una segunda petición: cada
+ * tramo trae sus metros por carretera al lado de sus segundos.
+ *
+ * Lo que se sustituye es el TIEMPO y la DISTANCIA. El orden de recogida lo sigue decidiendo
  * `planPickupRoute` por fuerza bruta, y por eso la petición va con `optimizeWaypoints: false`:
- * a Google se le pregunta cuánto se tarda en hacer este recorrido, no cómo ordenarlo.
+ * a Google se le pregunta cuánto cuesta hacer este recorrido, no cómo ordenarlo.
  *
  * Devuelve `null` en cuanto algo no encaja —sin red, cuota agotada, sin clave, una parada sin
  * ruta por carretera—, y quien llama se queda con la estimación del servidor. Iniciar la ruta
  * nunca puede depender de que Google conteste.
  */
-export async function fetchRealRouteTimings(
+export async function fetchRealRouteMetrics(
   origin: LatLng,
   destination: LatLng,
   roster: PassengerWithProfile[]
-): Promise<RealRouteTimings | null> {
+): Promise<RealRouteMetrics | null> {
   if (roster.length === 0 || roster.length > MAX_WAYPOINTS) return null;
   if (typeof window === "undefined" || !window.google?.maps?.DirectionsService) return null;
 
@@ -69,6 +72,7 @@ export async function fetchRealRouteTimings(
 
   const etaSecondsByPassengerId: Record<string, number> = {};
   let cumulativeSeconds = 0;
+  let totalDistanceMeters = 0;
   let withTraffic = true;
 
   for (const [index, stop] of plan.stops.entries()) {
@@ -78,19 +82,23 @@ export async function fetchRealRouteTimings(
     if (inTraffic == null) withTraffic = false;
 
     const seconds = inTraffic ?? plain;
-    if (seconds == null) return null;
+    const meters = leg.distance?.value;
+    if (seconds == null || meters == null) return null;
 
     cumulativeSeconds += seconds;
+    totalDistanceMeters += meters;
     etaSecondsByPassengerId[stop.passengerId] = cumulativeSeconds;
   }
 
   const lastLeg = legs[legs.length - 1]!;
   const lastSeconds = lastLeg.duration_in_traffic?.value ?? lastLeg.duration?.value;
-  if (lastSeconds == null) return null;
+  const lastMeters = lastLeg.distance?.value;
+  if (lastSeconds == null || lastMeters == null) return null;
 
   return {
     etaSecondsByPassengerId,
     totalDurationSeconds: cumulativeSeconds + lastSeconds,
+    totalDistanceMeters: totalDistanceMeters + lastMeters,
     withTraffic,
   };
 }

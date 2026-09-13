@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchPassengerRoster } from "./api";
 import { completeTripAction, markPassengerPickedUpAction, startRouteAction } from "./actions";
-import type { RealRouteTimings } from "./types";
+import type { RealRouteMetrics } from "./types";
 
 export function usePassengerRoster(tripId: string) {
   return useQuery({
@@ -18,8 +18,8 @@ export function usePassengerRoster(tripId: string) {
 export function useStartRoute() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ tripId, timings }: { tripId: string; timings?: RealRouteTimings }) =>
-      startRouteAction(tripId, timings),
+    mutationFn: ({ tripId, metrics }: { tripId: string; metrics?: RealRouteMetrics }) =>
+      startRouteAction(tripId, metrics),
     /**
      * Se espera a que AMBAS consultas terminen antes de dar la mutación por hecha. Si no,
      * el viaje pasa a "en curso" mientras el roster todavía es el anterior: la vista salta
