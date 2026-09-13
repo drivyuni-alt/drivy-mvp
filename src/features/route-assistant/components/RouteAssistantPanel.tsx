@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
+
 import { Badge, Button, Card, Skeleton } from "@/components/ui";
+import { useGoogleMaps } from "@/components/maps/GoogleMapsProvider";
 import { buildGoogleMapsDeepLink } from "@/lib/route-planner";
 import { formatDurationMinutes } from "@/lib/geo";
 import type { Tables } from "@/lib/supabase/types";
 
+import { fetchRealRouteTimings } from "../directions";
 import { useCompleteTrip, useMarkPassengerPickedUp, usePassengerRoster, useStartRoute } from "../hooks";
 import { useRealtimePassengerRoster } from "../realtime";
 
@@ -15,7 +19,33 @@ export function RouteAssistantPanel({ trip }: { trip: Tables<"trips"> }) {
   const startRoute = useStartRoute();
   const markPickedUp = useMarkPassengerPickedUp(trip.id);
   const completeTrip = useCompleteTrip();
+  const { isLoaded: mapsReady } = useGoogleMaps();
   useRealtimePassengerRoster(trip.id);
+
+  // Pedirle los tiempos a Google es parte de pulsar el botón, así que su espera cuenta como
+  // parte de la mutación: sin esto el botón se quedaría quieto durante esa pausa.
+  const [askingGoogle, setAskingGoogle] = useState(false);
+
+  /**
+   * Los tiempos reales se piden aquí, en el navegador del conductor, porque la clave de Maps
+   * está restringida por dominio y el servidor no puede llamar a Directions (ver
+   * ../directions.ts). Si Google no contesta —sin red, sin clave, cuota agotada— se arranca
+   * igual: el servidor estima con Haversine como hacía antes. Iniciar la ruta no puede
+   * depender de que un tercero conteste.
+   */
+  async function handleStartRoute() {
+    setAskingGoogle(true);
+    const timings = mapsReady
+      ? await fetchRealRouteTimings(
+          { lat: trip.origin_lat, lng: trip.origin_lng },
+          { lat: trip.destination_lat, lng: trip.destination_lng },
+          roster.data ?? []
+        )
+      : null;
+    setAskingGoogle(false);
+
+    startRoute.mutate({ tripId: trip.id, timings: timings ?? undefined });
+  }
 
   // Sólo en la primera carga, cuando de verdad no hay nada que enseñar. En las recargas
   // posteriores `placeholderData` conserva los datos anteriores, así que el panel nunca se
@@ -55,8 +85,8 @@ export function RouteAssistantPanel({ trip }: { trip: Tables<"trips"> }) {
         <Button
           className="mt-3"
           disabled={acceptedCount === 0}
-          isLoading={startRoute.isPending}
-          onClick={() => startRoute.mutate(trip.id)}
+          isLoading={askingGoogle || startRoute.isPending}
+          onClick={handleStartRoute}
         >
           Iniciar ruta
         </Button>

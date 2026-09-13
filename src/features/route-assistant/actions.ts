@@ -12,14 +12,48 @@ import { createClient } from "@/lib/supabase/server";
 import type { RouteWaypoint, Tables } from "@/lib/supabase/types";
 import type { ActionResult } from "@/types/action-result";
 
+import type { RealRouteTimings } from "./types";
+
+/**
+ * Los tiempos llegan del navegador del conductor, así que se comprueban antes de usarlos:
+ * tienen que cubrir exactamente a los pasajeros de este viaje, ni uno más ni uno menos, y ser
+ * segundos positivos. Basta con que alguien haya aceptado una reserva mientras el conductor
+ * tenía la pantalla abierta para que correspondan a otro recorrido.
+ */
+function timingsMatchRoster(
+  timings: RealRouteTimings | undefined,
+  stops: { passengerId: string }[]
+): boolean {
+  if (!timings) return false;
+
+  const provided = Object.keys(timings.etaSecondsByPassengerId);
+  if (provided.length !== stops.length) return false;
+  if (!stops.every((stop) => stop.passengerId in timings.etaSecondsByPassengerId)) return false;
+
+  const values = Object.values(timings.etaSecondsByPassengerId);
+  return (
+    values.every((seconds) => Number.isFinite(seconds) && seconds > 0) &&
+    Number.isFinite(timings.totalDurationSeconds) &&
+    timings.totalDurationSeconds > 0
+  );
+}
+
 /**
  * Driver taps "Iniciar ruta": computes the pickup order + ETAs (see
  * src/lib/route-planner.ts), moves the trip to `in_progress`, persists the plan to
  * `routes.waypoints`, and notifies every accepted passenger. All in one Server Action
  * because most of these writes touch tables passengers/notifications don't have an
  * `authenticated` write policy for — see docs/06-decisiones-fase-4.md.
+ *
+ * `timings` son los tiempos reales que el navegador del conductor le ha pedido a Google
+ * Directions (ver directions.ts). Llegan de fuera porque la clave de Maps está restringida
+ * por dominio y desde aquí no se puede llamar. Son opcionales a propósito: si Google no
+ * contestó, la ruta arranca igual con la estimación de `planPickupRoute`.
  */
-export async function startRouteAction(tripId: string): Promise<ActionResult> {
+export async function startRouteAction(
+  tripId: string,
+  timings?: RealRouteTimings
+): Promise<ActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -78,6 +112,22 @@ export async function startRouteAction(tripId: string): Promise<ActionResult> {
     new Date()
   );
 
+  /**
+   * Los tiempos del cliente sólo se aceptan si cubren exactamente a los pasajeros que hay
+   * ahora mismo en el viaje. Si no coinciden —alguien aceptó una reserva mientras el
+   * conductor tenía la pantalla abierta, por ejemplo—, los tiempos corresponden a otro
+   * recorrido y repartirlos sería peor que estimarlos: se descartan enteros.
+   */
+  const realEtaSeconds = timingsMatchRoster(timings, plan.stops)
+    ? timings!.etaSecondsByPassengerId
+    : null;
+
+  const etaSecondsFor = (stop: (typeof plan.stops)[number]) =>
+    realEtaSeconds?.[stop.passengerId] ?? stop.etaMinutesFromStart * 60;
+
+  const totalDurationSeconds =
+    realEtaSeconds && timings ? timings.totalDurationSeconds : plan.totalDurationMinutes * 60;
+
   const waypoints: RouteWaypoint[] = plan.stops.map((stop) => {
     const passengerRow = passengerRows.find((row) => row.user_id === stop.passengerId);
     const booking = passengerRow ? bookingById.get(passengerRow.booking_id) : undefined;
@@ -86,7 +136,7 @@ export async function startRouteAction(tripId: string): Promise<ActionResult> {
       lat: stop.location.lat,
       lng: stop.location.lng,
       address: booking?.pickup_address ?? "",
-      eta_seconds: stop.etaMinutesFromStart * 60,
+      eta_seconds: etaSecondsFor(stop),
       order: stop.order,
     };
   });
@@ -99,7 +149,7 @@ export async function startRouteAction(tripId: string): Promise<ActionResult> {
       .from("routes")
       .update({
         distance_meters: Math.round(plan.totalDistanceKm * 1000),
-        duration_seconds: plan.totalDurationMinutes * 60,
+        duration_seconds: totalDurationSeconds,
         waypoints,
       })
       .eq("id", routeId);
@@ -115,7 +165,7 @@ export async function startRouteAction(tripId: string): Promise<ActionResult> {
         destination_lat: trip.destination_lat,
         destination_lng: trip.destination_lng,
         distance_meters: Math.round(plan.totalDistanceKm * 1000),
-        duration_seconds: plan.totalDurationMinutes * 60,
+        duration_seconds: totalDurationSeconds,
         waypoints,
       })
       .select("id")
@@ -136,18 +186,23 @@ export async function startRouteAction(tripId: string): Promise<ActionResult> {
       if (!passengerRow) return Promise.resolve();
       return admin
         .from("passengers")
-        .update({ pickup_order: stop.order, eta_seconds: stop.etaMinutesFromStart * 60 })
+        .update({ pickup_order: stop.order, eta_seconds: etaSecondsFor(stop) })
         .eq("id", passengerRow.id);
     })
   );
 
+  // El texto no cambia; lo que cambia es de dónde sale el número. Antes eran los minutos de
+  // la estimación a 35 km/h en línea recta; ahora, cuando Google ha contestado, es el tiempo
+  // que de verdad se tarda por carretera.
   await Promise.all(
     plan.stops.map((stop) =>
       admin.from("notifications").insert({
         user_id: stop.passengerId,
         type: "trip_starting_soon",
         title: "Tu conductor ha iniciado la ruta",
-        body: `Llegará a tu punto de recogida en aproximadamente ${stop.etaMinutesFromStart} min.`,
+        body: `Llegará a tu punto de recogida en aproximadamente ${Math.round(
+          etaSecondsFor(stop) / 60
+        )} min.`,
         data: { trip_id: tripId },
       })
     )

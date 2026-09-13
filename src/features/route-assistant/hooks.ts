@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchPassengerRoster } from "./api";
 import { completeTripAction, markPassengerPickedUpAction, startRouteAction } from "./actions";
+import type { RealRouteTimings } from "./types";
 
 export function usePassengerRoster(tripId: string) {
   return useQuery({
@@ -17,14 +18,15 @@ export function usePassengerRoster(tripId: string) {
 export function useStartRoute() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: startRouteAction,
+    mutationFn: ({ tripId, timings }: { tripId: string; timings?: RealRouteTimings }) =>
+      startRouteAction(tripId, timings),
     /**
      * Se espera a que AMBAS consultas terminen antes de dar la mutación por hecha. Si no,
      * el viaje pasa a "en curso" mientras el roster todavía es el anterior: la vista salta
      * a la lista de recogidas con `pickup_order` a null, muestra guiones y un orden que no
      * es el bueno, y se recoloca sola un instante después. Eso es el parpadeo.
      */
-    onSuccess: async (_result, tripId) => {
+    onSuccess: async (_result, { tripId }) => {
       await Promise.all([
         queryClient.refetchQueries({ queryKey: ["passengers", "byTrip", tripId] }),
         queryClient.refetchQueries({ queryKey: ["trips", tripId] }),

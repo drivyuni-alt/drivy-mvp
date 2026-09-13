@@ -371,7 +371,8 @@ fricción contra el caso común, no moderación infalible.
 Al pulsar **"Iniciar ruta"** (solo el conductor, solo con pasajeros confirmados):
 
 1. Calcula el **orden óptimo exacto** de recogidas (`lib/route-planner.ts`)
-2. Calcula ETA por parada (distancia acumulada / 35 km/h urbano)
+2. Pide a **Google Directions, desde el navegador del conductor**, el tiempo real de ese
+   recorrido, y saca de ahí el ETA de cada parada (respaldo: distancia acumulada / 35 km/h)
 3. Persiste el plan en `routes.waypoints`
 4. `trips.status = 'in_progress'`, `started_at = now()`
 5. Escribe `pickup_order` y `eta_seconds` en cada `passengers`
@@ -385,9 +386,24 @@ recorrido total origen→paradas→destino. Medido sobre 2.000 configuraciones a
 Sevilla con 2-5 pasajeros: el algoritmo viejo era peor en el **55,4%** de los casos, con
 **4,43 km de más de media** y 28,73 km en el peor.
 
-**Limitación:** distancia en línea recta (Haversine), no por carretera. Afinarlo exigiría
-la Directions API con `optimizeWaypoints`, **imposible desde el servidor** porque la clave
-está restringida por dominio.
+**Limitación del ORDEN:** se decide sobre distancia en línea recta (Haversine), no por
+carretera. Afinarlo exigiría la Directions API con `optimizeWaypoints`, **imposible desde el
+servidor** porque la clave está restringida por dominio.
+
+**Los TIEMPOS sí son reales** (`features/route-assistant/directions.ts`). Se le piden a
+Directions desde el navegador del conductor al pulsar "Iniciar ruta", con
+`optimizeWaypoints: false` —a Google se le pregunta cuánto se tarda, no cómo ordenar—, y se
+mandan al servidor con la acción para que los guarde en `passengers.eta_seconds` y
+`routes.duration_seconds`. El servidor los valida antes de usarlos: tienen que cubrir
+exactamente a los pasajeros del viaje. Si Google no contesta, o no hay clave, o el roster ha
+cambiado, se cae a la estimación de siempre y la ruta arranca igual.
+
+**`routes.distance_meters` sigue siendo la línea recta**, y eso importa porque desde el
+arreglo de la distancia acreditada es el número que alimenta los km, los euros y el CO₂ de
+cada participante. Medido en un viaje real con 3 recogidas: 33,08 km en línea recta frente a
+**55,70 km por carretera**. La misma respuesta de Directions ya trae `legs[i].distance.value`,
+así que es cambiar dónde se lee — **pendiente de decidir**, porque subiría el impacto
+acreditado de todos los viajes futuros casi al doble.
 
 Durante la ruta: lista ordenada de paradas con dirección y ETA, botón **"Recogido"** por
 pasajero (notifica `passenger_picked_up`), deep link a Google Maps con las paradas ya
@@ -539,7 +555,9 @@ reserva, lo que va generando el histórico que haría falta para entrenarlo.
    hashes de contraseña). El plan gratuito no da backups descargables.
 3. **La clave de Google Maps está restringida por dominio**, así que **no se puede llamar
    desde el servidor**: devuelve `REQUEST_DENIED`. Por eso el orden de paradas se calcula con
-   Haversine y no con la Directions API.
+   Haversine y no con la Directions API. Los tiempos sí son reales: se piden desde el
+   navegador del conductor y se envían al servidor (ver §5.6), que es el patrón a repetir si
+   hace falta algo más de Maps en el backend.
 4. **Topes de cuota de Google sin poner.** `Map loads per day` sigue en "Ilimitado" y no se
    puede editar durante la prueba gratuita. **Hay que ponerlos (1.000/día acordado) el día
    que se pase a cuenta de pago.** Existe un presupuesto de aviso a 1 €, pero solo avisa.
