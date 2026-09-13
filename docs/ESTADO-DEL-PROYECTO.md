@@ -30,7 +30,7 @@ de WhatsApp, sin estructura ni confianza.
 | **Ruta óptima** | Ordena las recogidas minimizando el recorrido total. |
 | **Seguridad** | Botón SOS, contacto de emergencia, reportar y bloquear usuarios. |
 | **Teléfonos bloqueados en el chat** | Impide que la conversación se escape a WhatsApp y la plataforma pierda el control de la relación. |
-| **Impacto medible** | Dinero y CO₂ ahorrados, logros y ranking entre universidades. |
+| **Impacto medible** | Dinero y CO₂ ahorrados, y logros. |
 
 ---
 
@@ -430,8 +430,13 @@ volver a `scheduled`. Hay que hacerlo por SQL.
 
 **Ruta:** `/profile` · **Código:** `features/profile/`, `features/gamification/`
 
-Estadísticas, logros, ranking entre universidades, vehículos, métodos de pago (solo
-efectivo), centro de seguridad y tema claro/oscuro/sistema.
+Estadísticas, logros, vehículos, métodos de pago (solo efectivo), centro de seguridad y tema
+claro/oscuro/sistema.
+
+Hubo también un ranking entre universidades, retirado a petición del producto. Se agregaba en
+el cliente, así que no dejó nada en la base de datos: ni vista ni función. Si se recupera,
+el diseño está en el historial (`docs/07-decisiones-fase-5.md` y el componente borrado en
+este commit).
 
 **Editable:** nombre, apellidos, **universidad**, **correo universitario**, carrera,
 teléfono, bio, contacto de emergencia, aceptación automática y foto. Universidad y correo

@@ -28,9 +28,3 @@ export interface AchievementWithStatus {
   achievement: Tables<"achievements">;
   unlockedAt: string | null;
 }
-
-export interface UniversityRankingEntry {
-  university: Tables<"universities">;
-  totalPoints: number;
-  memberCount: number;
-}

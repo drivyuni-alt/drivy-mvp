@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { Avatar, Badge, Card, CardContent, Skeleton, buttonVariants } from "@/components/ui";
 import { useSignOut } from "@/features/auth/hooks";
 import { AchievementGrid } from "@/features/gamification/components/AchievementGrid";
-import { UniversityRankingList } from "@/features/gamification/components/UniversityRankingList";
 import { SecurityCenter } from "@/features/safety/components/SecurityCenter";
 import { VehicleList } from "@/features/vehicles/components/VehicleList";
 import { formatPrice } from "@/lib/format";
@@ -89,13 +88,6 @@ export function ProfileScreen({ userId }: { userId: string }) {
       <section>
         <h2 className="mb-3 text-lg font-semibold text-ink-900 dark:text-white">Logros</h2>
         <AchievementGrid userId={userId} />
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-lg font-semibold text-ink-900 dark:text-white">
-          Ranking entre universidades
-        </h2>
-        <UniversityRankingList />
       </section>
 
       <section>

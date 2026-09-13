@@ -37,6 +37,10 @@
   `Database["public"]["Views"]` está vacío en `src/lib/supabase/types.ts`. A la escala
   de un MVP universitario esto es perfectamente razonable; con miles de usuarios habría
   que pasar a una vista materializada.
+  **Retirado después** (ver §5.10 de `ESTADO-DEL-PROYECTO.md`): la sección salió del perfil a
+  petición del producto. Se deja escrito aquí porque la decisión de agregar en cliente sigue
+  siendo la correcta si el ranking vuelve, y porque explica por qué no hay que buscar una
+  vista SQL que nunca existió.
 
 ## Seguridad
 
