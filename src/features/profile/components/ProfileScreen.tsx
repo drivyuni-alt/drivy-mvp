@@ -41,12 +41,7 @@ export function ProfileScreen({ userId }: { userId: string }) {
     <div className="flex flex-col gap-6">
       <Card className="p-5">
         <div className="flex items-center gap-4">
-          <Avatar
-            src={user.avatar_url}
-            firstName={user.first_name}
-            lastName={user.last_name}
-            size="xl"
-          />
+          <Avatar src={user.avatar_url} size="xl" />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-xl font-bold text-ink-900 dark:text-white">
               {user.first_name} {user.last_name}

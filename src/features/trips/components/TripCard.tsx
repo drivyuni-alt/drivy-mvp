@@ -51,12 +51,7 @@ export function TripCard({ trip, driver, matchScore, role, bookingStatus }: Trip
 
         <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3 dark:border-neutral-800">
           <div className="flex items-center gap-2">
-            <Avatar
-              src={driver.avatar_url}
-              firstName={driver.first_name}
-              lastName={driver.last_name}
-              size="xs"
-            />
+            <Avatar src={driver.avatar_url} size="xs" />
             <span className="text-xs font-medium text-ink-900 dark:text-white">
               {driver.first_name} · ⭐ {driver.rating_avg.toFixed(1)}
             </span>

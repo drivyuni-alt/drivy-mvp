@@ -47,12 +47,7 @@ export function ChatListScreen({ userId }: { userId: string }) {
         return (
           <Link key={chat.id} href={`/chats/${chat.id}`}>
             <Card className="flex items-center gap-3 p-4 transition-shadow hover:shadow-glow">
-              <Avatar
-                src={otherUser.avatar_url}
-                firstName={otherUser.first_name}
-                lastName={otherUser.last_name}
-                size="md"
-              />
+              <Avatar src={otherUser.avatar_url} size="md" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-ink-900 dark:text-white">
                   {otherUser.first_name} {otherUser.last_name}

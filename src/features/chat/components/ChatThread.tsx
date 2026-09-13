@@ -54,12 +54,7 @@ export function ChatThread({ chatId, currentUserId }: { chatId: string; currentU
         >
           ←
         </Link>
-        <Avatar
-          src={otherUser.avatar_url}
-          firstName={otherUser.first_name}
-          lastName={otherUser.last_name}
-          size="sm"
-        />
+        <Avatar src={otherUser.avatar_url} size="sm" />
         <div>
           <p className="text-sm font-semibold text-ink-900 dark:text-white">
             {otherUser.first_name} {otherUser.last_name}

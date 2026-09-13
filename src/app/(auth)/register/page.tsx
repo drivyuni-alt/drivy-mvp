@@ -86,15 +86,10 @@ export default function RegisterPage() {
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
-          {/* Mismo componente que el resto de la app: mientras no se elija foto muestra las
-              iniciales de lo que ya se haya escrito arriba, y una silueta si aún no hay
-              nombre. Antes era un círculo gris vacío. */}
-          <Avatar
-            src={avatarPreview}
-            firstName={form.firstName}
-            lastName={form.lastName}
-            size="xl"
-          />
+          {/* Mismo componente que el resto de la app: hasta que se elige foto enseña la cara
+              genérica, y la sustituye por el previo en cuanto hay una. Antes era un círculo
+              gris vacío. */}
+          <Avatar src={avatarPreview} size="xl" />
           <div className="flex flex-col gap-1">
             <label
               htmlFor="avatar"

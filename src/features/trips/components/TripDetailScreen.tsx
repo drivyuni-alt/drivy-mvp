@@ -68,12 +68,7 @@ export function TripDetailScreen({
 
       <Card className="p-4">
         <div className="flex items-center gap-3">
-          <Avatar
-            src={driver.avatar_url}
-            firstName={driver.first_name}
-            lastName={driver.last_name}
-            size="lg"
-          />
+          <Avatar src={driver.avatar_url} size="lg" />
           <div>
             <p className="text-sm font-semibold text-ink-900 dark:text-white">
               {driver.first_name} {driver.last_name}

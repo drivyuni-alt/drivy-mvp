@@ -52,12 +52,7 @@ export function Navbar({ profile }: { profile: Tables<"users"> }) {
             <span className="hidden text-sm font-medium text-ink-900 dark:text-white sm:inline">
               {profile.first_name}
             </span>
-            <Avatar
-              src={profile.avatar_url}
-              firstName={profile.first_name}
-              lastName={profile.last_name}
-              size="sm"
-            />
+            <Avatar src={profile.avatar_url} size="sm" />
           </Link>
         </div>
       </div>

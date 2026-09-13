@@ -52,12 +52,7 @@ function BookingRequestCard({
     <Card className="p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Avatar
-            src={passenger.avatar_url}
-            firstName={passenger.first_name}
-            lastName={passenger.last_name}
-            size="sm"
-          />
+          <Avatar src={passenger.avatar_url} size="sm" />
           <div>
             <p className="text-sm font-semibold text-ink-900 dark:text-white">
               {passenger.first_name} {passenger.last_name}

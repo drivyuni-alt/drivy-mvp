@@ -4,53 +4,68 @@ export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 export interface AvatarProps {
   src?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
   size?: AvatarSize;
   className?: string;
+}
+
+/** Las medidas son las que ya tenía cada pantalla, para no mover nada de sitio. */
+const SIZE_CLASSES: Record<AvatarSize, string> = {
+  xs: "h-7 w-7", // tarjeta de viaje
+  sm: "h-9 w-9", // barra superior, chat, solicitudes
+  md: "h-11 w-11", // lista de conversaciones
+  lg: "h-12 w-12", // detalle del viaje
+  xl: "h-16 w-16", // perfil y registro
+};
+
+/**
+ * Cara genérica para cuando no hay foto.
+ *
+ * Dibujada a mano y no un emoji Unicode (🙂) a propósito. Cada sistema trae su propia
+ * tipografía de emoji —Windows, iOS y Android dibujan caras distintas— así que pegar un
+ * carácter en el JSX habría dejado el avatar con un aspecto diferente en cada teléfono, que
+ * es justo lo que se quería evitar al centralizar esto en un componente. Un SVG propio se ve
+ * igual en todas partes y lleva el verde exacto de la marca.
+ *
+ * La proporción va sobre un lienzo de 40 para que los rasgos escalen solos: la misma cara
+ * vale para los 28px de la tarjeta de viaje y para los 64px del perfil.
+ */
+function GenericFace() {
+  return (
+    <svg viewBox="0 0 40 40" className="h-full w-full" aria-hidden>
+      <circle cx="20" cy="20" r="20" className="fill-brand-100 dark:fill-brand-900" />
+      <g className="fill-brand-800 dark:fill-brand-200">
+        <circle cx="14" cy="16.5" r="2.8" />
+        <circle cx="26" cy="16.5" r="2.8" />
+      </g>
+      <path
+        d="M12.2 24.2 Q20 30.4 27.8 24.2"
+        fill="none"
+        strokeWidth="3"
+        strokeLinecap="round"
+        className="stroke-brand-800 dark:stroke-brand-200"
+      />
+    </svg>
+  );
 }
 
 /**
  * Foto de perfil, con recambio para cuando no la hay.
  *
  * La foto es opcional al registrarse ("puedes añadirla después"), así que la mayoría de las
- * cuentas nuevas tienen `users.avatar_url` a null. Hasta ahora cada pantalla pintaba el mismo
- * apaño por su cuenta —un círculo gris con la imagen dentro sólo si existía—, de modo que sin
- * foto quedaba un agujero vacío: en el chat, en la lista de conversaciones, en las
- * solicitudes de reserva, en la tarjeta de viaje, en el perfil y en la barra superior.
+ * cuentas nuevas tienen `users.avatar_url` a null. Antes cada pantalla pintaba su propio
+ * apaño —un círculo gris con la imagen dentro sólo si existía— y sin foto quedaba un agujero
+ * vacío en las ocho.
  *
- * Con iniciales el hueco pasa a decir algo, y a distinguir a una persona de otra en una lista
- * donde antes eran todas el mismo círculo gris. El verde de marca desaturado se lee como
- * parte del diseño sin competir con los botones, que usan el verde a plena intensidad.
- *
- * Cuando no hay ni nombre —el previo de la foto al registrarse, antes de escribir nada— cae a
- * una silueta genérica.
- *
- * Las medidas son las que ya había en cada sitio, para no mover nada de su posición.
+ * La cara cubre los dos casos sin foto, con nombre y sin él: antes había iniciales y, cuando
+ * tampoco había nombre —el previo de la foto al registrarse, antes de escribir nada—, una
+ * silueta. Dos recambios para el mismo hueco, y el de las iniciales dependía de un dato que
+ * no siempre está. Una sola cara es más simple de leer y no depende de nada.
  */
-const SIZE_CLASSES: Record<AvatarSize, string> = {
-  xs: "h-7 w-7 text-[0.625rem]", // tarjeta de viaje
-  sm: "h-9 w-9 text-xs", // barra superior, chat, solicitudes
-  md: "h-11 w-11 text-sm", // lista de conversaciones
-  lg: "h-12 w-12 text-sm", // detalle del viaje
-  xl: "h-16 w-16 text-lg", // perfil y registro
-};
-
-function initials(firstName?: string | null, lastName?: string | null): string {
-  const first = firstName?.trim()?.[0] ?? "";
-  const last = lastName?.trim()?.[0] ?? "";
-  return `${first}${last}`.toUpperCase();
-}
-
-export function Avatar({ src, firstName, lastName, size = "sm", className }: AvatarProps) {
-  const letters = initials(firstName, lastName);
-
+export function Avatar({ src, size = "sm", className }: AvatarProps) {
   return (
     <div
       className={cn(
         "shrink-0 overflow-hidden rounded-full",
-        !src && "flex items-center justify-center font-semibold",
-        !src && "bg-brand-100 text-brand-800 dark:bg-brand-900/50 dark:text-brand-200",
         src && "bg-neutral-100 dark:bg-neutral-800",
         SIZE_CLASSES[size],
         className
@@ -59,14 +74,8 @@ export function Avatar({ src, firstName, lastName, size = "sm", className }: Ava
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- remote Supabase Storage URL
         <img src={src} alt="" className="h-full w-full object-cover" />
-      ) : letters ? (
-        // El nombre siempre se escribe al lado, así que para un lector de pantalla esto es
-        // decoración: repetirlo sólo añadiría ruido.
-        <span aria-hidden>{letters}</span>
       ) : (
-        <svg viewBox="0 0 24 24" fill="currentColor" className="h-1/2 w-1/2" aria-hidden>
-          <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v1a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1c0-2.76-3.58-5-8-5Z" />
-        </svg>
+        <GenericFace />
       )}
     </div>
   );
